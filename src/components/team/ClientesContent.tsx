@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import type { Role } from '@/lib/types'
@@ -47,8 +46,11 @@ export function ClientesContent({ clients, role }: Props) {
     if (!newName.trim()) return
 
     startTransition(async () => {
-      const supabase = createSupabaseClient()
-      await supabase.from('clients').insert({ name: newName.trim() })
+      await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      })
       setNewName('')
       setShowNew(false)
       router.refresh()
@@ -56,11 +58,11 @@ export function ClientesContent({ clients, role }: Props) {
   }
 
   async function handleToggleStatus(client: ClientWithPieces) {
-    const supabase = createSupabaseClient()
-    await supabase
-      .from('clients')
-      .update({ status: client.status === 'ativo' ? 'inativo' : 'ativo' })
-      .eq('id', client.id)
+    await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: client.status === 'ativo' ? 'inativo' : 'ativo' }),
+    })
     router.refresh()
   }
 
@@ -169,16 +171,32 @@ export function ClientesContent({ clients, role }: Props) {
 
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {client.status === 'ativo' && (
-                    <button
-                      onClick={() => handleCopyLink(client.magic_token, client.id)}
-                      className={cn(
-                        'text-xs px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',
-                        copiedId === client.id
-                          ? 'border-emerald-500/30 text-emerald-400 bg-emerald-400/5'
-                          : 'border-[#2E2E2E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#555555]'
-                      )}
-                      title="Copiar link de aprovação"
-                    >
+                    <>
+                      {/* Abrir link */}
+                      <a
+                        href={getClientUrl(client.magic_token)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-[#2E2E2E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#555555] transition-colors flex items-center gap-1.5"
+                        title="Visualizar como cliente"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Abrir
+                      </a>
+
+                      {/* Copiar link */}
+                      <button
+                        onClick={() => handleCopyLink(client.magic_token, client.id)}
+                        className={cn(
+                          'text-xs px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',
+                          copiedId === client.id
+                            ? 'border-emerald-500/30 text-emerald-400 bg-emerald-400/5'
+                            : 'border-[#2E2E2E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#555555]'
+                        )}
+                        title="Copiar link de aprovação"
+                      >
                       {copiedId === client.id ? (
                         <>
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,7 +212,8 @@ export function ClientesContent({ clients, role }: Props) {
                           Copiar link
                         </>
                       )}
-                    </button>
+                      </button>
+                    </>
                   )}
 
                   {canEdit && (

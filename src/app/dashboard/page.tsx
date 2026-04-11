@@ -1,37 +1,33 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { getRoleFromEmail } from '@/lib/auth/roles'
+import { getSession } from '@/lib/session'
+import { createServiceClient } from '@/lib/supabase/server'
 import { TeamLayout } from '@/components/layout/TeamLayout'
 import { DashboardContent } from '@/components/team/DashboardContent'
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await getSession()
+  if (!session) redirect('/login')
 
-  if (!user) redirect('/login')
+  const supabase = await createServiceClient()
 
-  const email = user.email ?? ''
-  const role = getRoleFromEmail(email)
-  if (!role) redirect('/login')
-
-  // Fetch pieces with client and approval data
-  const { data: pieces } = await supabase
-    .from('pieces')
-    .select('*, client:clients(id, name, status), approval:approvals(*)')
-    .order('created_at', { ascending: false })
-
-  // Fetch clients for filter
-  const { data: clients } = await supabase
-    .from('clients')
-    .select('id, name, status')
-    .order('name')
+  const [piecesRes, clientsRes] = await Promise.all([
+    supabase
+      .from('pieces')
+      .select('*, client:clients(id, name, status), approval:approvals(*)')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('clients')
+      .select('id, name, status')
+      .order('name'),
+  ])
 
   return (
-    <TeamLayout role={role} email={email}>
+    <TeamLayout role={session.role} email={session.email}>
       <DashboardContent
-        pieces={pieces ?? []}
-        clients={clients ?? []}
-        role={role}
+        pieces={piecesRes.data ?? []}
+        clients={clientsRes.data ?? []}
+        role={session.role}
+        currentUserEmail={session.email}
       />
     </TeamLayout>
   )

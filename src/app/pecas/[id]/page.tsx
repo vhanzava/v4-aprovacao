@@ -1,19 +1,15 @@
 import { redirect, notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { getRoleFromEmail } from '@/lib/auth/roles'
+import { getSession } from '@/lib/session'
+import { createServiceClient } from '@/lib/supabase/server'
 import { TeamLayout } from '@/components/layout/TeamLayout'
 import { PecaDetail } from '@/components/team/PecaDetail'
 
 export default async function PecaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await getSession()
+  if (!session) redirect('/login')
 
-  if (!user) redirect('/login')
-
-  const email = user.email ?? ''
-  const role = getRoleFromEmail(email)
-  if (!role) redirect('/login')
+  const supabase = await createServiceClient()
 
   const { data: piece } = await supabase
     .from('pieces')
@@ -23,14 +19,13 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
 
   if (!piece) notFound()
 
-  // Sort assets by order_index
   if (piece.assets) {
     piece.assets.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index)
   }
 
   return (
-    <TeamLayout role={role} email={email}>
-      <PecaDetail piece={piece} role={role} />
+    <TeamLayout role={session.role} email={session.email}>
+      <PecaDetail piece={piece} role={session.role} />
     </TeamLayout>
   )
 }

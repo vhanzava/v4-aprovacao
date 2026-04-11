@@ -62,6 +62,9 @@ export async function POST(request: Request) {
       .update({ status })
       .eq('id', piece_id)
 
+    // Delete raw files from Storage — keeps DB history, frees storage
+    await cleanupAssets(supabase, piece_id)
+
     // Notify Google Chat
     await notifyGoogleChat({
       clientName: client.name,
@@ -79,6 +82,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function cleanupAssets(supabase: any, piece_id: string) {
+  try {
+    // Fetch storage paths for this piece
+    const { data: assets } = await supabase
+      .from('piece_assets')
+      .select('storage_path')
+      .eq('piece_id', piece_id)
+      .not('storage_path', 'is', null)
+
+    if (assets && assets.length > 0) {
+      const paths = assets.map((a: { storage_path: string }) => a.storage_path).filter(Boolean)
+      if (paths.length > 0) {
+        await supabase.storage.from('pieces').remove(paths)
+      }
+    }
+  } catch {
+    // Cleanup failure shouldn't break the approval flow
   }
 }
 

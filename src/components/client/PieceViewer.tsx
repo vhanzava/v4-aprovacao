@@ -9,13 +9,39 @@ interface Props {
   piece: Piece
 }
 
+// Extrai o FILE_ID de qualquer formato de link do Google Drive
+function getDriveEmbedUrl(url: string): string | null {
+  try {
+    // Formatos suportados:
+    // https://drive.google.com/file/d/FILE_ID/view
+    // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    // https://drive.google.com/open?id=FILE_ID
+    // https://drive.google.com/file/d/FILE_ID/preview (já é embed)
+
+    const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+    if (fileMatch) return `https://drive.google.com/file/d/${fileMatch[1]}/preview`
+
+    const openMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+    if (openMatch) return `https://drive.google.com/file/d/${openMatch[1]}/preview`
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 export function PieceViewer({ piece }: Props) {
   const [copyExpanded, setCopyExpanded] = useState(false)
+
+  const embedUrl = piece.drive_url ? getDriveEmbedUrl(piece.drive_url) : null
+
+  // Altura do iframe: vídeo é mais alto, imagem/carrossel mais compacto
+  const iframeHeight = piece.format === 'video' ? 'aspect-video' : 'aspect-square'
 
   return (
     <div className="flex flex-col flex-1 px-4 pt-6 pb-4 max-w-lg mx-auto w-full">
       {/* Tags */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <span className="text-xs text-[#555555] bg-[#141414] px-2.5 py-1 rounded-full border border-[#2E2E2E]">
           {formatLabel(piece.format)}
         </span>
@@ -34,11 +60,10 @@ export function PieceViewer({ piece }: Props) {
         {piece.title}
       </h2>
 
-      {/* Media */}
-      <div className="flex-1">
-        {/* Images */}
+      <div className="flex-1 space-y-4">
+        {/* Imagens uploadadas (imagem única) */}
         {piece.assets && piece.assets.length > 0 && (
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2">
             {piece.assets.map((asset, i) => (
               <div key={asset.id} className="relative rounded-xl overflow-hidden bg-[#141414]">
                 {piece.format === 'carrossel' && (
@@ -48,7 +73,7 @@ export function PieceViewer({ piece }: Props) {
                 )}
                 <Image
                   src={asset.url}
-                  alt={`${piece.title}`}
+                  alt={piece.title}
                   width={800}
                   height={800}
                   className="w-full h-auto"
@@ -59,37 +84,48 @@ export function PieceViewer({ piece }: Props) {
           </div>
         )}
 
-        {/* Drive link */}
-        {piece.drive_url && (
+        {/* Drive embed — vídeo, carrossel ou imagem via Drive */}
+        {embedUrl && (
+          <div className={`w-full rounded-xl overflow-hidden bg-[#141414] ${iframeHeight}`}>
+            <iframe
+              src={embedUrl}
+              className="w-full h-full"
+              allow="autoplay"
+              allowFullScreen
+              loading="lazy"
+              title={piece.title}
+            />
+          </div>
+        )}
+
+        {/* Fallback: link do Drive não reconhecido */}
+        {piece.drive_url && !embedUrl && (
           <a
             href={piece.drive_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2.5 w-full bg-[#141414] hover:bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl px-4 py-4 text-[#888888] hover:text-[#F5F5F5] text-sm transition-colors mb-4"
+            className="flex items-center justify-center gap-2.5 w-full bg-[#141414] hover:bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl px-4 py-4 text-[#888888] hover:text-[#F5F5F5] text-sm transition-colors"
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
-            {piece.format === 'video' ? 'Assistir vídeo no Drive' : 'Ver arquivo no Drive'}
-            <svg className="w-4 h-4 opacity-50 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
+            {piece.format === 'video' ? 'Assistir vídeo' : 'Ver arquivo'}
           </a>
         )}
 
         {/* Copy */}
         {piece.copy && (
-          <div className="bg-[#141414] border border-[#2E2E2E] rounded-xl overflow-hidden mb-4">
+          <div className="bg-[#141414] border border-[#2E2E2E] rounded-xl overflow-hidden">
             <button
               onClick={() => setCopyExpanded(!copyExpanded)}
               className="w-full flex items-center justify-between px-4 py-3 text-left"
             >
-              <span className="text-[#888888] text-xs font-medium uppercase tracking-wider">Texto da postagem</span>
+              <span className="text-[#888888] text-xs font-medium uppercase tracking-wider">
+                Texto da postagem
+              </span>
               <svg
                 className={`w-4 h-4 text-[#555555] transition-transform ${copyExpanded ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
