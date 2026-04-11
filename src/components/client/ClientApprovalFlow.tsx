@@ -100,8 +100,8 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
 
   return (
     <div className="min-h-dvh bg-[#0A0A0A] flex flex-col">
-      {/* Progress bar — top, subtle */}
-      <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-[#1E1E1E]">
+      {/* Progress bar — top */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-[#2A2A2A]">
         <div
           className="h-full bg-[#E8192C] transition-all duration-500 ease-out"
           style={{ width: `${(decided.size / totalPieces) * 100}%` }}
