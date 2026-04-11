@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --v4-red: #E8192C;
+  --v4-red-dark: #C41020;
+  --v4-black: #0A0A0A;
+  --v4-surface: #141414;
+  --v4-surface-2: #1E1E1E;
+  --v4-surface-3: #2A2A2A;
+  --v4-border: #2E2E2E;
+  --v4-text: #F5F5F5;
+  --v4-text-muted: #888888;
+  --v4-text-subtle: #555555;
+
+  --background: var(--v4-black);
+  --foreground: var(--v4-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-v4-red: #E8192C;
+  --color-v4-red-dark: #C41020;
+  --color-v4-black: #0A0A0A;
+  --color-v4-surface: #141414;
+  --color-v4-surface-2: #1E1E1E;
+  --color-v4-surface-3: #2A2A2A;
+  --color-v4-border: #2E2E2E;
+  --color-v4-text: #F5F5F5;
+  --color-v4-text-muted: #888888;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100dvh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--v4-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--v4-surface-3);
+  border-radius: 3px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--v4-red);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--v4-red);
+  color: white;
+}
