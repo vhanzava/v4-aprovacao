@@ -21,7 +21,8 @@ export default async function AtividadesPage() {
 
   return (
     <TeamLayout role={session.role} email={session.email} pendingCount={pendingRes.count ?? 0}>
-      <AtividadesContent pieces={piecesRes.data ?? []} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <AtividadesContent pieces={(piecesRes.data ?? []) as any} />
     </TeamLayout>
   )
 }
