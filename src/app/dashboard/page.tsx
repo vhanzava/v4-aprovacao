@@ -21,8 +21,10 @@ export default async function DashboardPage() {
       .order('name'),
   ])
 
+  const pendingCount = (piecesRes.data ?? []).filter(p => p.status === 'pendente').length
+
   return (
-    <TeamLayout role={session.role} email={session.email}>
+    <TeamLayout role={session.role} email={session.email} pendingCount={pendingCount}>
       <DashboardContent
         pieces={piecesRes.data ?? []}
         clients={clientsRes.data ?? []}

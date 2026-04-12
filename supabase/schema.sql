@@ -159,3 +159,8 @@ create index if not exists pieces_client_id_idx on pieces(client_id);
 create index if not exists pieces_status_idx on pieces(status);
 create index if not exists piece_assets_piece_id_idx on piece_assets(piece_id);
 create index if not exists approvals_piece_id_idx on approvals(piece_id);
+
+-- ============================================================
+-- Migration: adicionar created_by_email em pieces
+-- ============================================================
+alter table pieces add column if not exists created_by_email text;

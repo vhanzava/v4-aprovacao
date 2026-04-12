@@ -45,19 +45,38 @@ function LogoutIcon() {
   )
 }
 
+function ClockIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function ActivityIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  )
+}
+
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: <LayoutIcon /> },
   { href: '/clientes', label: 'Clientes', icon: <UsersIcon /> },
   { href: '/pecas/nova', label: 'Nova peça', icon: <PlusIcon /> },
+  { href: '/pendentes', label: 'Pendentes', icon: <ClockIcon /> },
+  { href: '/atividades', label: 'Atividades', icon: <ActivityIcon /> },
 ]
 
 interface TeamLayoutProps {
   children: React.ReactNode
   role: Role
   email: string
+  pendingCount?: number
 }
 
-export function TeamLayout({ children, role, email }: TeamLayoutProps) {
+export function TeamLayout({ children, role, email, pendingCount }: TeamLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -80,21 +99,35 @@ export function TeamLayout({ children, role, email }: TeamLayoutProps) {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map(item => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
-                    pathname === item.href || pathname.startsWith(item.href + '/')
-                      ? 'bg-[#2A2A2A] text-[#F5F5F5]'
-                      : 'text-[#888888] hover:text-[#F5F5F5] hover:bg-[#1E1E1E]'
-                  )}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map(item => {
+                const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                const showBadge = item.href === '/pendentes' && pendingCount != null && pendingCount > 0
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
+                      active
+                        ? 'bg-[#2A2A2A] text-[#F5F5F5]'
+                        : 'text-[#888888] hover:text-[#F5F5F5] hover:bg-[#1E1E1E]'
+                    )}
+                  >
+                    {item.icon}
+                    {item.label}
+                    {showBadge && (
+                      <span className={cn(
+                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none',
+                        pendingCount! > 5
+                          ? 'bg-[#E8192C] text-white'
+                          : 'bg-[#3A3A3A] text-[#F5F5F5]'
+                      )}>
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
             </nav>
           </div>
 
@@ -117,21 +150,33 @@ export function TeamLayout({ children, role, email }: TeamLayoutProps) {
 
         {/* Mobile nav */}
         <nav className="md:hidden flex border-t border-[#2E2E2E]">
-          {navItems.map(item => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex-1 flex flex-col items-center gap-1 py-2 text-[10px] transition-colors',
-                pathname === item.href || pathname.startsWith(item.href + '/')
-                  ? 'text-[#E8192C]'
-                  : 'text-[#555555]'
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map(item => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            const showBadge = item.href === '/pendentes' && pendingCount != null && pendingCount > 0
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex-1 flex flex-col items-center gap-1 py-2 text-[10px] transition-colors relative',
+                  active ? 'text-[#E8192C]' : 'text-[#555555]'
+                )}
+              >
+                <span className="relative">
+                  {item.icon}
+                  {showBadge && (
+                    <span className={cn(
+                      'absolute -top-1.5 -right-2 text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full leading-none',
+                      pendingCount! > 5 ? 'bg-[#E8192C] text-white' : 'bg-[#3A3A3A] text-[#F5F5F5]'
+                    )}>
+                      {pendingCount! > 9 ? '9+' : pendingCount}
+                    </span>
+                  )}
+                </span>
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
       </header>
 

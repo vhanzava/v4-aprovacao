@@ -10,16 +10,18 @@ function getServiceClient() {
   )
 }
 
-async function getSessionRole() {
+async function getSession() {
   const cookieStore = await cookies()
   const email = cookieStore.get('v4_email')?.value
   if (!email) return null
-  return getRoleFromEmail(email)
+  const role = getRoleFromEmail(email)
+  if (!role) return null
+  return { email, role }
 }
 
 export async function POST(request: Request) {
-  const role = await getSessionRole()
-  if (!role || !canCreatePieces(role)) {
+  const session = await getSession()
+  if (!session || !canCreatePieces(session.role)) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
 
   const { data: piece, error } = await supabase
     .from('pieces')
-    .insert({ client_id, title, format, purpose, copy: copy || null, drive_url: drive_url || null, post_date: post_date || null })
+    .insert({ client_id, title, format, purpose, copy: copy || null, drive_url: drive_url || null, post_date: post_date || null, created_by_email: session.email })
     .select()
     .single()
 
