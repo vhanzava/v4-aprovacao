@@ -18,7 +18,8 @@ export default async function PendentesPage() {
 
   return (
     <TeamLayout role={session.role} email={session.email} pendingCount={pieces?.length ?? 0}>
-      <PendentesContent pieces={pieces ?? []} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <PendentesContent pieces={(pieces ?? []) as any} />
     </TeamLayout>
   )
 }
