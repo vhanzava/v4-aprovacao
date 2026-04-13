@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import type { Role } from '@/lib/types'
@@ -170,6 +171,14 @@ export function ClientesContent({ clients, role }: Props) {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Detalhes do cliente */}
+                  <Link
+                    href={`/clientes/${client.id}`}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#2E2E2E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#555555] transition-colors"
+                  >
+                    Detalhes
+                  </Link>
+
                   {client.status === 'ativo' && (
                     <>
                       {/* Abrir link */}

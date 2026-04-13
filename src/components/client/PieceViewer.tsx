@@ -33,11 +33,86 @@ function getDriveEmbedUrl(url: string): string | null {
 export function PieceViewer({ piece }: Props) {
   const [copyExpanded, setCopyExpanded] = useState(false)
 
+  const isStage2 = piece.stage === 2
   const embedUrl = piece.drive_url ? getDriveEmbedUrl(piece.drive_url) : null
 
   // Altura do iframe: vídeo é mais alto, imagem/carrossel mais compacto
   const iframeHeight = piece.format === 'video' ? 'aspect-video' : 'aspect-square'
 
+  // ── Stage 2: copy + caption prominence ──────────────────────────────────
+  if (isStage2) {
+    return (
+      <div className="flex flex-col flex-1 px-4 pt-6 pb-4 max-w-lg mx-auto w-full">
+        {/* Stage badge */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-xs text-violet-400 bg-violet-400/10 px-2.5 py-1 rounded-full border border-violet-400/20">
+            Etapa 2 — Copy
+          </span>
+          {piece.purpose && (
+            <span className="text-xs text-[#555555] bg-[#141414] px-2.5 py-1 rounded-full border border-[#2E2E2E]">
+              {purposeLabel(piece.purpose)}
+            </span>
+          )}
+          {piece.post_date && (
+            <span className="text-xs text-[#888888] bg-[#141414] px-2.5 py-1 rounded-full border border-[#2E2E2E]">
+              Postagem: {formatDate(piece.post_date)}
+            </span>
+          )}
+        </div>
+
+        <h2 className="text-[#F5F5F5] font-semibold text-lg leading-snug mb-5">
+          {piece.title}
+        </h2>
+
+        <div className="flex-1 space-y-4">
+          {/* Copy text — always expanded and prominent */}
+          {piece.copy && (
+            <div className="bg-[#141414] border border-[#2E2E2E] rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#2E2E2E]">
+                <span className="text-[#888888] text-xs font-medium uppercase tracking-wider">
+                  Texto da arte
+                </span>
+              </div>
+              <div className="px-4 py-4 text-sm text-[#F5F5F5] whitespace-pre-wrap leading-relaxed">
+                {piece.copy}
+              </div>
+            </div>
+          )}
+
+          {/* Post caption */}
+          {piece.post_caption && (
+            <div className="bg-[#141414] border border-[#2E2E2E] rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#2E2E2E]">
+                <span className="text-[#888888] text-xs font-medium uppercase tracking-wider">
+                  Legenda da postagem
+                </span>
+              </div>
+              <div className="px-4 py-4 text-sm text-[#F5F5F5] whitespace-pre-wrap leading-relaxed">
+                {piece.post_caption}
+              </div>
+            </div>
+          )}
+
+          {/* Drive link if present */}
+          {piece.drive_url && (
+            <a
+              href={piece.drive_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2.5 w-full bg-[#141414] hover:bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl px-4 py-4 text-[#888888] hover:text-[#F5F5F5] text-sm transition-colors"
+            >
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Ver referência no Drive
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Stage 3 (default): art approval ─────────────────────────────────────
   return (
     <div className="flex flex-col flex-1 px-4 pt-6 pb-4 max-w-lg mx-auto w-full">
       {/* Tags */}

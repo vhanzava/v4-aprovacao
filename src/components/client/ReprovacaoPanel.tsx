@@ -20,6 +20,7 @@ interface Props {
 type Step = 1 | 2 | 3
 
 export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Props) {
+  const isStage2 = piece.stage === 2
   const flow = getReprovacaoFlow(piece.format, piece.purpose)
 
   const [step, setStep] = useState<Step>(1)
@@ -87,6 +88,47 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   const totalSteps = step1AnswersWithStep2.length > 0 ? 3 : 2
   const currentStepNum = step === 1 ? 1 : step === 2 ? 2 : totalSteps
 
+  // ── Stage 2: simple open-text reproval ──────────────────────────────────
+  if (isStage2) {
+    return (
+      <div className="bg-[#0A0A0A] min-h-[40dvh]">
+        <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[#F5F5F5] font-medium">O que precisa mudar?</p>
+            <button
+              onClick={onCancel}
+              className="text-[#555555] hover:text-[#888888] text-xs flex items-center gap-1 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+              Cancelar
+            </button>
+          </div>
+          <textarea
+            autoFocus
+            value={step3Text}
+            onChange={e => setStep3Text(e.target.value)}
+            placeholder="Descreve o que não agradou no copy ou na legenda..."
+            rows={4}
+            className="w-full bg-[#141414] border border-[#2E2E2E] rounded-xl px-4 py-3 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] resize-none leading-relaxed transition-colors"
+          />
+          <button
+            onClick={() => {
+              if (!step3Text.trim() || submitting) return
+              onComplete({ step1_answers: [], step2_answers: [], step2_open: '', step3_text: step3Text.trim() })
+            }}
+            disabled={!step3Text.trim() || submitting}
+            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl text-sm transition-colors"
+          >
+            {submitting ? 'Enviando...' : 'Enviar feedback'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Stage 3 (default): structured reproval flow ──────────────────────────
   return (
     <div className="bg-[#0A0A0A] min-h-[60dvh]">
       {/* Panel header */}
