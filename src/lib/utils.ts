@@ -38,7 +38,8 @@ export function formatLabel(format: PieceFormat | string | null | undefined): st
   return map[format] ?? format
 }
 
-export function purposeLabel(purpose: PiecePurpose): string {
+export function purposeLabel(purpose: PiecePurpose | string | null | undefined): string {
+  if (!purpose) return '—'
   return purpose === 'postagem' ? 'Postagem' : 'Anúncio'
 }
 
