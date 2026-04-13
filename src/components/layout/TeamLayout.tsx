@@ -116,7 +116,7 @@ export function TeamLayout({ children, role, email, pendingCount }: TeamLayoutPr
             </span>
 
             {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-0.5">
               {navItems.map(item => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/')
                 const showBadge = item.href === '/pendentes' && pendingCount != null && pendingCount > 0
@@ -125,7 +125,7 @@ export function TeamLayout({ children, role, email, pendingCount }: TeamLayoutPr
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors whitespace-nowrap',
                       active
                         ? 'bg-[#2A2A2A] text-[#F5F5F5]'
                         : 'text-[#888888] hover:text-[#F5F5F5] hover:bg-[#1E1E1E]'
@@ -155,7 +155,7 @@ export function TeamLayout({ children, role, email, pendingCount }: TeamLayoutPr
                 Admin
               </span>
             )}
-            <span className="hidden sm:block text-[#555555] text-xs truncate max-w-[160px]">{email}</span>
+            <span className="hidden lg:block text-[#555555] text-xs truncate max-w-[140px]">{email}</span>
             <button
               onClick={handleLogout}
               className="text-[#555555] hover:text-[#F5F5F5] transition-colors p-1.5 rounded-md hover:bg-[#1E1E1E]"
