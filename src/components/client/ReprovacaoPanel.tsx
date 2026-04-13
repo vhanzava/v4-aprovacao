@@ -298,7 +298,7 @@ function OptionButton({
     >
       <div className="flex items-center gap-3">
         <div className={cn(
-          'w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all',
+          'w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all',
           selected ? 'border-[#E8192C] bg-[#E8192C]' : 'border-[#2E2E2E]'
         )}>
           {selected && (

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { cn, formatDate, formatLabel, purposeLabel, statusLabel, statusColor } from '@/lib/utils'
+import { cn, formatDate, formatLabel, purposeLabel, statusLabel, statusColor, formatDuration } from '@/lib/utils'
 import type { Piece, Client, Role } from '@/lib/types'
 
 interface Props {
@@ -23,22 +23,15 @@ function filterByPeriod(pieces: Piece[], period: FilterPeriod): Piece[] {
   return pieces.filter(p => new Date(p.created_at) >= cutoff)
 }
 
-function avgResponseHours(pieces: Piece[]): number | null {
+function avgResponseMinutes(pieces: Piece[]): number | null {
   const decided = pieces.filter(p => p.approval && (p.approval as { decided_at?: string }).decided_at)
   if (!decided.length) return null
   const total = decided.reduce((sum, p) => {
     const created = new Date(p.created_at).getTime()
     const decided_at = new Date((p.approval as { decided_at: string }).decided_at).getTime()
-    return sum + (decided_at - created) / (1000 * 60 * 60)
+    return sum + (decided_at - created) / (1000 * 60)
   }, 0)
   return Math.round(total / decided.length)
-}
-
-function formatHours(h: number): string {
-  if (h < 24) return `${h}h`
-  const d = Math.floor(h / 24)
-  const r = h % 24
-  return r > 0 ? `${d}d ${r}h` : `${d}d`
 }
 
 export function DashboardContent({ pieces, clients, role, currentUserEmail }: Props) {
@@ -61,7 +54,7 @@ export function DashboardContent({ pieces, clients, role, currentUserEmail }: Pr
   const reprovados = periodPieces.filter(p => p.status === 'reprovado').length
   const decided = aprovados + reprovados
   const approvalRate = decided > 0 ? Math.round((aprovados / decided) * 100) : null
-  const avgHours = avgResponseHours(periodPieces)
+  const avgMinutes = avgResponseMinutes(periodPieces)
 
   // Per-client stats
   const clientStats = useMemo(() => {
@@ -137,8 +130,8 @@ export function DashboardContent({ pieces, clients, role, currentUserEmail }: Pr
         />
         <KpiCard
           label="Tempo médio de resposta"
-          value={avgHours !== null ? formatHours(avgHours) : '—'}
-          color={avgHours !== null ? (avgHours <= 24 ? 'text-emerald-400' : avgHours <= 48 ? 'text-amber-400' : 'text-red-400') : undefined}
+          value={avgMinutes !== null ? formatDuration(avgMinutes) : '—'}
+          color={avgMinutes !== null ? (avgMinutes <= 1440 ? 'text-emerald-400' : avgMinutes <= 2880 ? 'text-amber-400' : 'text-red-400') : undefined}
           sub="do envio à decisão"
         />
       </div>

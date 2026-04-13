@@ -25,35 +25,52 @@ export function formatDateTime(dateStr: string): string {
   })
 }
 
-export function formatLabel(format: PieceFormat): string {
-  const map: Record<PieceFormat, string> = {
+export function formatLabel(format: PieceFormat | string | null | undefined): string {
+  if (!format) return '—'
+  const map: Record<string, string> = {
     imagem_unica: 'Imagem única',
     carrossel: 'Carrossel',
     video: 'Vídeo',
+    banner: 'Banner',
+    artigo: 'Artigo',
+    blog: 'Blog',
   }
-  return map[format]
+  return map[format] ?? format
 }
 
 export function purposeLabel(purpose: PiecePurpose): string {
   return purpose === 'postagem' ? 'Postagem' : 'Anúncio'
 }
 
-export function statusLabel(status: PieceStatus): string {
-  const map: Record<PieceStatus, string> = {
+export function statusLabel(status: PieceStatus | string): string {
+  const map: Record<string, string> = {
     pendente: 'Pendente',
     aprovado: 'Aprovado',
     reprovado: 'Reprovado',
+    cancelada: 'Cancelada',
   }
-  return map[status]
+  return map[status] ?? status
 }
 
-export function statusColor(status: PieceStatus): string {
-  const map: Record<PieceStatus, string> = {
+export function statusColor(status: PieceStatus | string): string {
+  const map: Record<string, string> = {
     pendente: 'text-amber-400 bg-amber-400/10',
     aprovado: 'text-emerald-400 bg-emerald-400/10',
     reprovado: 'text-red-400 bg-red-400/10',
+    cancelada: 'text-[#555555] bg-[#2A2A2A]',
   }
-  return map[status]
+  return map[status] ?? 'text-[#888888] bg-[#1E1E1E]'
+}
+
+/** Format a duration given in minutes to human-readable string */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h < 24) return m > 0 ? `${h}h ${m}min` : `${h}h`
+  const d = Math.floor(h / 24)
+  const rh = h % 24
+  return rh > 0 ? `${d}d ${rh}h` : `${d}d`
 }
 
 export function generateToken(): string {

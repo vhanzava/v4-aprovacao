@@ -65,9 +65,12 @@ export function NovaPecaForm({ clients }: Props) {
   }
 
   const formats: { value: PieceFormat; label: string; desc: string }[] = [
-    { value: 'imagem_unica', label: 'Imagem única', desc: 'Post, banner ou anúncio estático' },
+    { value: 'imagem_unica', label: 'Imagem única', desc: 'Post ou anúncio estático' },
     { value: 'carrossel', label: 'Carrossel', desc: 'Sequência de imagens' },
-    { value: 'video', label: 'Vídeo', desc: 'Reels, stories ou anúncio em vídeo' },
+    { value: 'video', label: 'Vídeo', desc: 'Reels, stories ou anúncio' },
+    { value: 'banner', label: 'Banner', desc: 'Display, e-mail ou impresso' },
+    { value: 'artigo', label: 'Artigo', desc: 'LinkedIn, Medium ou blog' },
+    { value: 'blog', label: 'Blog', desc: 'Post de blog no site' },
   ]
 
   const purposes: { value: PiecePurpose; label: string }[] = [
@@ -109,7 +112,7 @@ export function NovaPecaForm({ clients }: Props) {
         </Field>
 
         <Field label="Formato" required>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
             {formats.map(f => (
               <button
                 key={f.value}

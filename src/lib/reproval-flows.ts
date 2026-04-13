@@ -121,9 +121,24 @@ export interface ReprovacaoFlow {
   }
 }
 
+const genericOptions: ReprovacaoOption[] = [
+  { value: 'conteudo', label: 'Conteúdo / mensagem' },
+  { value: 'texto', label: 'Texto / copy' },
+  { value: 'visual', label: 'Visual / design' },
+  { value: 'data', label: 'Data de publicação' },
+  outroOption,
+]
+
+const genericStep2Map: Record<string, { question: string; type: 'multiple_choice' | 'open' | 'date_picker'; options?: ReprovacaoOption[] }> = {
+  conteudo: { question: 'O que no conteúdo precisa mudar?', type: 'multiple_choice', options: textoPostagemOptions },
+  texto: { question: 'O que no texto precisa mudar?', type: 'multiple_choice', options: textoPostagemOptions },
+  visual: { question: 'O que no visual precisa mudar?', type: 'multiple_choice', options: arteOptions },
+  data: { question: 'Qual seria a melhor data?', type: 'date_picker' },
+}
+
 export function getReprovacaoFlow(
-  format: PieceFormat,
-  purpose: PiecePurpose
+  format: PieceFormat | string | null,
+  purpose: PiecePurpose | string | null
 ): ReprovacaoFlow {
   const step3 = {
     question: 'Descreve com suas palavras o que gostaria de ajustar:',
@@ -241,7 +256,19 @@ export function getReprovacaoFlow(
     }
   }
 
-  // video + anuncio
+  // banner, artigo, blog — generic fallback
+  if (format === 'banner' || format === 'artigo' || format === 'blog') {
+    return {
+      step1: {
+        question: 'O que não te agradou?',
+        options: genericOptions,
+      },
+      step2Map: genericStep2Map,
+      step3,
+    }
+  }
+
+  // video + anuncio (default fallback)
   return {
     step1: {
       question: 'O que não te agradou?',

@@ -61,11 +61,20 @@ function ActivityIcon() {
   )
 }
 
+function ListIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+    </svg>
+  )
+}
+
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: <LayoutIcon /> },
   { href: '/clientes', label: 'Clientes', icon: <UsersIcon /> },
   { href: '/pecas/nova', label: 'Nova peça', icon: <PlusIcon /> },
   { href: '/pendentes', label: 'Pendentes', icon: <ClockIcon /> },
+  { href: '/backlog', label: 'Backlog', icon: <ListIcon /> },
   { href: '/atividades', label: 'Atividades', icon: <ActivityIcon /> },
 ]
 

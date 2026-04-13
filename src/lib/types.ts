@@ -2,11 +2,13 @@ export type Role = 'admin' | 'team' | 'viewer'
 
 export type ClientStatus = 'ativo' | 'inativo'
 
-export type PieceFormat = 'imagem_unica' | 'carrossel' | 'video'
+export type PieceFormat = 'imagem_unica' | 'carrossel' | 'video' | 'banner' | 'artigo' | 'blog'
 
 export type PiecePurpose = 'postagem' | 'anuncio'
 
-export type PieceStatus = 'pendente' | 'aprovado' | 'reprovado'
+export type PieceStatus = 'pendente' | 'aprovado' | 'reprovado' | 'cancelada'
+
+export type PieceStage = 1 | 2 | 3
 
 export interface UserRole {
   id: string
@@ -28,14 +30,21 @@ export interface Piece {
   id: string
   client_id: string
   created_by: string | null
+  created_by_email?: string | null
   title: string
-  format: PieceFormat
-  purpose: PiecePurpose
+  format: PieceFormat | null
+  purpose: PiecePurpose | null
   status: PieceStatus
+  stage: PieceStage
   copy: string | null
+  post_caption: string | null
   drive_url: string | null
   post_date: string | null
   order_index: number
+  theme_date: string | null
+  theme_description: string | null
+  theme_headline: string | null
+  calendar_id: string | null
   created_at: string
   // joined
   client?: Client

@@ -34,9 +34,12 @@ interface ActivityEvent {
   piece_title: string
   piece_format: string
   piece_purpose: string
+  client_id: string
   client_name: string
   approval?: Approval
 }
+
+type DateFilter = 'hoje' | '7d' | '30d' | 'todos'
 
 function buildEvents(pieces: PieceActivity[]): ActivityEvent[] {
   const events: ActivityEvent[] = []
@@ -46,11 +49,14 @@ function buildEvents(pieces: PieceActivity[]): ActivityEvent[] {
       id: `upload-${p.id}`,
       type: 'upload',
       timestamp: p.created_at,
-      actor: p.created_by_email ? p.created_by_email.split('@')[0].replace('.', ' ') : 'Time',
+      actor: p.created_by_email
+        ? p.created_by_email.split('@')[0].replace('.', ' ')
+        : 'Time',
       piece_id: p.id,
       piece_title: p.title,
       piece_format: p.format,
       piece_purpose: p.purpose,
+      client_id: p.client?.id ?? '',
       client_name: p.client?.name ?? '—',
     })
 
@@ -64,6 +70,7 @@ function buildEvents(pieces: PieceActivity[]): ActivityEvent[] {
         piece_title: p.title,
         piece_format: p.format,
         piece_purpose: p.purpose,
+        client_id: p.client?.id ?? '',
         client_name: p.client?.name ?? '—',
         approval: p.approval,
       })
@@ -73,33 +80,117 @@ function buildEvents(pieces: PieceActivity[]): ActivityEvent[] {
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
 
+function filterByDate(events: ActivityEvent[], filter: DateFilter): ActivityEvent[] {
+  if (filter === 'todos') return events
+  const now = new Date()
+  const cutoff = new Date()
+  if (filter === 'hoje') {
+    cutoff.setHours(0, 0, 0, 0)
+  } else {
+    const days = filter === '7d' ? 7 : 30
+    cutoff.setDate(now.getDate() - days)
+  }
+  return events.filter(e => new Date(e.timestamp) >= cutoff)
+}
+
 export function AtividadesContent({ pieces }: { pieces: PieceActivity[] }) {
   const [search, setSearch] = useState('')
+  const [clientFilter, setClientFilter] = useState('todos')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('todos')
+
+  // Unique clients from pieces
+  const clients = useMemo(() => {
+    const seen = new Map<string, string>()
+    pieces.forEach(p => {
+      if (p.client?.id) seen.set(p.client.id, p.client.name)
+    })
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [pieces])
+
+  const allEvents = useMemo(() => buildEvents(pieces), [pieces])
 
   const events = useMemo(() => {
-    const all = buildEvents(pieces)
-    if (!search.trim()) return all
-    const q = search.toLowerCase()
-    return all.filter(e =>
-      e.piece_title.toLowerCase().includes(q) ||
-      e.client_name.toLowerCase().includes(q) ||
-      e.actor.toLowerCase().includes(q)
-    )
-  }, [pieces, search])
+    let result = filterByDate(allEvents, dateFilter)
+
+    if (clientFilter !== 'todos') {
+      result = result.filter(e => e.client_id === clientFilter)
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(e =>
+        e.piece_title.toLowerCase().includes(q) ||
+        e.client_name.toLowerCase().includes(q) ||
+        e.actor.toLowerCase().includes(q)
+      )
+    }
+
+    return result
+  }, [allEvents, dateFilter, clientFilter, search])
+
+  const dateOptions: { value: DateFilter; label: string }[] = [
+    { value: 'hoje', label: 'Hoje' },
+    { value: '7d', label: '7 dias' },
+    { value: '30d', label: '30 dias' },
+    { value: 'todos', label: 'Tudo' },
+  ]
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold text-[#F5F5F5]">Atividades</h1>
           <p className="text-[#888888] text-sm mt-0.5">Histórico completo de uploads e aprovações</p>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Search */}
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar criativo, cliente..."
-          className="bg-[#141414] border border-[#2E2E2E] rounded-lg px-3 py-2 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] transition-colors w-56"
+          className="bg-[#141414] border border-[#2E2E2E] rounded-lg px-3 py-2 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] transition-colors w-52"
         />
+
+        {/* Client filter */}
+        <select
+          value={clientFilter}
+          onChange={e => setClientFilter(e.target.value)}
+          className="bg-[#141414] border border-[#2E2E2E] rounded-lg px-3 py-2 text-sm text-[#888888] focus:outline-none focus:border-[#E8192C] transition-colors"
+        >
+          <option value="todos">Todos os clientes</option>
+          {clients.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Date filter */}
+        <div className="flex items-center gap-1">
+          {dateOptions.map(o => (
+            <button
+              key={o.value}
+              onClick={() => setDateFilter(o.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                dateFilter === o.value
+                  ? 'bg-[#E8192C] text-white'
+                  : 'bg-[#1E1E1E] text-[#888888] hover:text-[#F5F5F5]'
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Count */}
+        <span className="text-[#555555] text-xs ml-auto">
+          {events.length} evento{events.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {events.length === 0 ? (
@@ -158,9 +249,11 @@ export function AtividadesContent({ pieces }: { pieces: PieceActivity[] }) {
                       >
                         {event.piece_title}
                       </Link>
-                      <span className="text-[10px] text-[#555555] bg-[#2A2A2A] px-1.5 py-0.5 rounded flex-shrink-0">
-                        {formatLabel(event.piece_format as 'imagem_unica' | 'carrossel' | 'video')}
-                      </span>
+                      {event.piece_format && (
+                        <span className="text-[10px] text-[#555555] bg-[#2A2A2A] px-1.5 py-0.5 rounded flex-shrink-0">
+                          {formatLabel(event.piece_format)}
+                        </span>
+                      )}
                     </div>
                   </td>
 
