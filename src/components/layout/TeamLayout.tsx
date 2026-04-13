@@ -69,10 +69,19 @@ function ListIcon() {
   )
 }
 
+function CalendarIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: <LayoutIcon /> },
   { href: '/clientes', label: 'Clientes', icon: <UsersIcon /> },
   { href: '/pecas/nova', label: 'Nova peça', icon: <PlusIcon /> },
+  { href: '/calendarios', label: 'Calendários', icon: <CalendarIcon /> },
   { href: '/pendentes', label: 'Pendentes', icon: <ClockIcon /> },
   { href: '/backlog', label: 'Backlog', icon: <ListIcon /> },
   { href: '/atividades', label: 'Atividades', icon: <ActivityIcon /> },

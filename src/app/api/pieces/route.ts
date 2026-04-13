@@ -26,17 +26,41 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { client_id, title, format, purpose, copy, drive_url, post_date, assets } = body
+  const {
+    client_id, title, format, purpose, copy, drive_url, post_date, assets,
+    stage, calendar_id, theme_date, theme_description, theme_headline, post_caption,
+  } = body
 
-  if (!client_id || !title || !format || !purpose) {
+  if (!client_id || !title) {
     return NextResponse.json({ error: 'Campos obrigatórios faltando' }, { status: 400 })
+  }
+
+  // Stage 3 requires format + purpose
+  const pieceStage = stage ?? 3
+  if (pieceStage === 3 && (!format || !purpose)) {
+    return NextResponse.json({ error: 'Formato e tipo obrigatórios para etapa 3' }, { status: 400 })
   }
 
   const supabase = getServiceClient()
 
   const { data: piece, error } = await supabase
     .from('pieces')
-    .insert({ client_id, title, format, purpose, copy: copy || null, drive_url: drive_url || null, post_date: post_date || null, created_by_email: session.email })
+    .insert({
+      client_id,
+      title,
+      stage: pieceStage,
+      format: format || null,
+      purpose: purpose || null,
+      copy: copy || null,
+      post_caption: post_caption || null,
+      drive_url: drive_url || null,
+      post_date: post_date || null,
+      calendar_id: calendar_id || null,
+      theme_date: theme_date || null,
+      theme_description: theme_description || null,
+      theme_headline: theme_headline || null,
+      created_by_email: session.email,
+    })
     .select()
     .single()
 
