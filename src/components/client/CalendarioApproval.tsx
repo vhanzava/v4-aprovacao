@@ -44,23 +44,36 @@ function toDateStr(year: number, month: number, day: number) {
 }
 
 export function CalendarioApproval({ clientName, token, themes: initialThemes, nationalDates, onAllDone }: Props) {
-  const pendingThemes = initialThemes.filter(t => t.status === 'pendente')
+  // Pre-populate decided map from themes already decided in previous sessions
+  const buildInitialDecided = () => {
+    const map = new Map<string, 'aprovado' | 'reprovado'>()
+    for (const t of initialThemes) {
+      if (t.status === 'aprovado' || t.status === 'reprovado') {
+        map.set(t.id, t.status)
+      }
+    }
+    return map
+  }
 
-  // Derive year/month from the first theme
-  const firstDate = pendingThemes[0]?.theme_date ?? initialThemes[0]?.theme_date ?? ''
+  // Derive year/month from first theme
+  const firstDate = initialThemes[0]?.theme_date ?? ''
   const [year, month] = firstDate.split('-').map(Number)
 
-  const [decided, setDecided] = useState<Map<string, 'aprovado' | 'reprovado'>>(new Map())
-  const [selected, setSelected] = useState<string | null>(null)  // theme id
+  const [decided, setDecided] = useState<Map<string, 'aprovado' | 'reprovado'>>(buildInitialDecided)
+  const [selected, setSelected] = useState<string | null>(null)
   const [reprovando, setReprovando] = useState<string | null>(null)
   const [reprovText, setReprovText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [undoing, setUndoing] = useState<string | null>(null)
 
   const grid = buildGrid(year, month)
+  const total = initialThemes.length
+  const doneCount = decided.size
+  const allDone = doneCount === total && total > 0
 
-  // Index themes by date
+  // Index ALL themes by date (not just pending)
   const themesByDate = new Map<string, Theme[]>()
-  for (const t of pendingThemes) {
+  for (const t of initialThemes) {
     const d = t.theme_date
     if (!themesByDate.has(d)) themesByDate.set(d, [])
     themesByDate.get(d)!.push(t)
@@ -73,36 +86,32 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
     ndByDate.get(nd.date)!.push(nd)
   }
 
-  const total = pendingThemes.length
-  const doneCount = decided.size
-  const allDone = doneCount === total
-
-  const selectedTheme = pendingThemes.find(t => t.id === selected)
+  const selectedTheme = initialThemes.find(t => t.id === selected)
 
   async function handleApprove(themeId: string) {
     if (submitting) return
     setSubmitting(true)
 
-    await fetch('/api/approval', {
+    const res = await fetch('/api/approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, piece_id: themeId, status: 'aprovado' }),
     })
 
-    setDecided(prev => new Map(prev).set(themeId, 'aprovado'))
-    setSelected(null)
-    setSubmitting(false)
-
-    if (doneCount + 1 === total) {
-      setTimeout(onAllDone, 600)
+    if (res.ok) {
+      const next = new Map(decided).set(themeId, 'aprovado')
+      setDecided(next)
+      setSelected(null)
+      if (next.size === total) setTimeout(onAllDone, 800)
     }
+    setSubmitting(false)
   }
 
   async function handleReprove(themeId: string) {
     if (submitting || !reprovText.trim()) return
     setSubmitting(true)
 
-    await fetch('/api/approval', {
+    const res = await fetch('/api/approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -116,15 +125,34 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
       }),
     })
 
-    setDecided(prev => new Map(prev).set(themeId, 'reprovado'))
-    setReprovando(null)
-    setReprovText('')
-    setSelected(null)
-    setSubmitting(false)
-
-    if (doneCount + 1 === total) {
-      setTimeout(onAllDone, 600)
+    if (res.ok) {
+      const next = new Map(decided).set(themeId, 'reprovado')
+      setDecided(next)
+      setReprovando(null)
+      setReprovText('')
+      setSelected(null)
+      if (next.size === total) setTimeout(onAllDone, 800)
     }
+    setSubmitting(false)
+  }
+
+  async function handleUndo(themeId: string) {
+    if (undoing) return
+    setUndoing(themeId)
+
+    const res = await fetch('/api/approval', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, piece_id: themeId }),
+    })
+
+    if (res.ok) {
+      const next = new Map(decided)
+      next.delete(themeId)
+      setDecided(next)
+      setSelected(null)
+    }
+    setUndoing(null)
   }
 
   return (
@@ -140,12 +168,12 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
       <div className="flex-1 pt-8 px-4 pb-10 max-w-lg mx-auto w-full">
         {/* Header */}
         <div className="mb-6">
-          <p className="text-[#555555] text-xs mb-1">Etapa 1 de 3 — Temas</p>
+          <p className="text-[#555555] text-xs mb-1">Etapa 1 de 3 — Postagens</p>
           <h1 className="text-[#F5F5F5] text-2xl font-semibold leading-snug">
-            Aprove os temas de {MONTHS_PT[month - 1]}
+            Aprove as postagens de {MONTHS_PT[month - 1]}
           </h1>
           <p className="text-[#888888] text-sm mt-2">
-            Toque em um tema no calendário para aprovar ou recusar.
+            Toque em uma postagem no calendário para aprovar ou recusar.
           </p>
           <div className="mt-3 flex items-center gap-3">
             <div className="flex-1 h-1 bg-[#2A2A2A] rounded-full overflow-hidden">
@@ -167,7 +195,7 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
             <span className="w-2 h-2 rounded-full bg-blue-400" />Data comemorativa
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-violet-400" />Tema para aprovar
+            <span className="w-2 h-2 rounded-full bg-violet-400" />Postagem para aprovar
           </div>
         </div>
 
@@ -185,7 +213,10 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
               const dateStr = toDateStr(year, month, day)
               const dayThemes = themesByDate.get(dateStr) ?? []
               const nds = ndByDate.get(dateStr) ?? []
-              const allDecidedOnDay = dayThemes.every(t => decided.has(t.id))
+
+              // Determine cell color based on decision state
+              const firstDecision = dayThemes.length > 0 ? decided.get(dayThemes[0].id) : undefined
+              const allDecided = dayThemes.length > 0 && dayThemes.every(t => decided.has(t.id))
               const hasUndecided = dayThemes.some(t => !decided.has(t.id))
 
               return (
@@ -212,15 +243,16 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
                     ))}
                     {dayThemes.length > 0 && (
                       <div className={cn(
-                        'text-[8px] px-0.5 rounded truncate leading-tight',
-                        allDecidedOnDay
-                          ? decided.get(dayThemes[0].id) === 'aprovado'
+                        'text-[8px] px-0.5 rounded truncate leading-tight font-medium',
+                        allDecided
+                          ? firstDecision === 'aprovado'
                             ? 'text-emerald-400 bg-emerald-400/10'
                             : 'text-red-400 bg-red-400/10'
-                          : 'text-violet-400 bg-violet-400/10',
-                        hasUndecided && 'font-medium'
+                          : 'text-violet-400 bg-violet-400/10'
                       )}>
-                        {dayThemes.length > 1 ? `${dayThemes.length} temas` : 'Tema'}
+                        {dayThemes.length > 1
+                          ? `${dayThemes.length} posts`
+                          : (dayThemes[0].theme_description ?? 'Postagem')}
                       </div>
                     )}
                   </div>
@@ -230,10 +262,10 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
           </div>
         </div>
 
-        {/* Theme list below calendar */}
+        {/* Theme list */}
         <div className="space-y-2">
-          <h2 className="text-[#555555] text-xs font-medium uppercase tracking-wider">Temas do mês</h2>
-          {pendingThemes.map(t => {
+          <h2 className="text-[#555555] text-xs font-medium uppercase tracking-wider">Postagens do mês</h2>
+          {initialThemes.map(t => {
             const decision = decided.get(t.id)
             const isSelected = selected === t.id
 
@@ -259,9 +291,13 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
                           weekday: 'short', day: 'numeric', month: 'short'
                         })}
                       </p>
-                      <p className="text-[#F5F5F5] text-sm font-medium">{t.theme_description}</p>
+                      {t.theme_description && (
+                        <span className="inline-block text-[10px] text-violet-400 bg-violet-400/10 px-2 py-0.5 rounded-full mb-1.5">
+                          {t.theme_description}
+                        </span>
+                      )}
                       {t.theme_headline && (
-                        <p className="text-[#555555] text-xs mt-1 italic">"{t.theme_headline}"</p>
+                        <p className="text-[#F5F5F5] text-sm font-medium">{t.theme_headline}</p>
                       )}
                     </div>
                     {decision && (
@@ -275,10 +311,25 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
                   </div>
                 </button>
 
-                {/* Action panel for selected theme */}
-                {isSelected && !decided.has(t.id) && (
+                {/* Action panel */}
+                {isSelected && (
                   <div className="mt-2 px-2 space-y-3">
-                    {reprovando !== t.id ? (
+                    {decision ? (
+                      /* Already decided — show undo */
+                      <div className="flex items-center justify-between px-4 py-3 bg-[#141414] border border-[#2E2E2E] rounded-2xl">
+                        <span className="text-[#888888] text-sm">
+                          {decision === 'aprovado' ? 'Postagem aprovada' : 'Postagem recusada'}
+                        </span>
+                        <button
+                          onClick={() => handleUndo(t.id)}
+                          disabled={undoing === t.id}
+                          className="text-[#555555] hover:text-[#F5F5F5] text-xs border border-[#2E2E2E] hover:border-[#555555] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                        >
+                          {undoing === t.id ? '...' : 'Desfazer'}
+                        </button>
+                      </div>
+                    ) : reprovando !== t.id ? (
+                      /* Undecided — approve/reject buttons */
                       <div className="flex gap-3">
                         <button
                           onClick={() => setReprovando(t.id)}
@@ -295,6 +346,7 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
                         </button>
                       </div>
                     ) : (
+                      /* Reproval text form */
                       <div className="space-y-3 bg-[#141414] border border-[#2E2E2E] rounded-2xl p-4">
                         <p className="text-[#F5F5F5] text-sm font-medium">O que precisa mudar?</p>
                         <textarea
@@ -330,8 +382,14 @@ export function CalendarioApproval({ clientName, token, themes: initialThemes, n
         </div>
 
         {allDone && (
-          <div className="text-center py-8">
-            <p className="text-emerald-400 text-sm font-medium">Todos os temas revisados! ✓</p>
+          <div className="mt-6 text-center py-8 space-y-4">
+            <p className="text-emerald-400 text-sm font-medium">Todas as postagens revisadas!</p>
+            <button
+              onClick={onAllDone}
+              className="bg-[#E8192C] hover:bg-[#C41020] text-white text-sm font-medium px-8 py-3 rounded-2xl transition-colors"
+            >
+              Continuar
+            </button>
           </div>
         )}
       </div>

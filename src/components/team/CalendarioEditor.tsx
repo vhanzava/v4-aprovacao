@@ -54,10 +54,13 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
   const [saving, setSaving] = useState(false)
   const [markingReady, setMarkingReady] = useState(false)
 
+  const POSITIONING_TYPES = ['Carrossel', 'Reels', 'Card'] as const
+  type PositioningType = typeof POSITIONING_TYPES[number]
+
   // Selected date state for adding theme
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [addingTheme, setAddingTheme] = useState(false)
-  const [themeForm, setThemeForm] = useState({ description: '', headline: '' })
+  const [themeForm, setThemeForm] = useState({ type: 'Carrossel' as PositioningType, headline: '' })
   const [themeSubmitting, setThemeSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -108,10 +111,10 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
   }, [calendar.id, nationalDates, saving])
 
   const handleAddTheme = useCallback(async () => {
-    if (!selectedDate || !themeForm.description.trim()) return
+    if (!selectedDate) return
     setThemeSubmitting(true)
 
-    const title = `Tema ${selectedDate} — ${themeForm.description.slice(0, 40)}`
+    const title = `${themeForm.type} ${selectedDate}${themeForm.headline.trim() ? ` — ${themeForm.headline.trim().slice(0, 40)}` : ''}`
     const res = await fetch('/api/pieces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -121,7 +124,7 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
         stage: 1,
         calendar_id: calendar.id,
         theme_date: selectedDate,
-        theme_description: themeForm.description.trim(),
+        theme_description: themeForm.type,
         theme_headline: themeForm.headline.trim() || null,
         format: null,
         purpose: null,
@@ -131,7 +134,7 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
     if (res.ok) {
       const piece = await res.json()
       setThemes(prev => [...prev, piece])
-      setThemeForm({ description: '', headline: '' })
+      setThemeForm({ type: 'Carrossel', headline: '' })
       setAddingTheme(false)
     }
     setThemeSubmitting(false)
@@ -268,7 +271,7 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
                   onClick={() => {
                     setSelectedDate(dateStr)
                     setAddingTheme(true)
-                    setThemeForm({ description: '', headline: '' })
+                    setThemeForm({ type: 'Carrossel', headline: '' })
                   }}
                   className={cn(
                     'h-20 border-b border-r border-[#1E1E1E] p-1.5 cursor-pointer transition-colors relative overflow-hidden',
@@ -301,11 +304,14 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
                       </div>
                     ))}
 
-                    {/* Theme indicator */}
-                    {dayThemes.length > 0 && (
-                      <div className="text-[9px] leading-tight px-1 rounded bg-violet-400/10 text-violet-400 truncate">
-                        {dayThemes.length} tema{dayThemes.length > 1 ? 's' : ''}
+                    {/* Theme indicators — show type per theme */}
+                    {dayThemes.slice(0, 2).map(t => (
+                      <div key={t.id} className="text-[9px] leading-tight px-1 rounded bg-violet-400/10 text-violet-400 truncate">
+                        {t.theme_description ?? 'Postagem'}
                       </div>
+                    ))}
+                    {dayThemes.length > 2 && (
+                      <div className="text-[9px] text-violet-400/60">+{dayThemes.length - 2}</div>
                     )}
                   </div>
                 </div>
@@ -363,14 +369,17 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
               {/* Add theme form */}
               {!isReady && (
                 <div className="space-y-2">
-                  <h4 className="text-[#555555] text-xs">Adicionar tema</h4>
-                  <input
-                    type="text"
-                    value={themeForm.description}
-                    onChange={e => setThemeForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Tema / assunto..."
-                    className="w-full bg-[#0A0A0A] border border-[#2E2E2E] rounded-lg px-3 py-2 text-xs text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] transition-colors"
-                  />
+                  <h4 className="text-[#555555] text-xs">Adicionar postagem</h4>
+                  {/* Positioning type dropdown */}
+                  <select
+                    value={themeForm.type}
+                    onChange={e => setThemeForm(prev => ({ ...prev, type: e.target.value as PositioningType }))}
+                    className="w-full bg-[#0A0A0A] border border-[#2E2E2E] rounded-lg px-3 py-2 text-xs text-[#F5F5F5] focus:outline-none focus:border-[#E8192C] transition-colors appearance-none"
+                  >
+                    {POSITIONING_TYPES.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                   <input
                     type="text"
                     value={themeForm.headline}
@@ -380,10 +389,10 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
                   />
                   <button
                     onClick={handleAddTheme}
-                    disabled={!themeForm.description.trim() || themeSubmitting}
+                    disabled={themeSubmitting}
                     className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white text-xs font-medium py-2 rounded-lg transition-colors"
                   >
-                    {themeSubmitting ? 'Salvando...' : '+ Adicionar tema'}
+                    {themeSubmitting ? 'Salvando...' : '+ Adicionar postagem'}
                   </button>
                 </div>
               )}

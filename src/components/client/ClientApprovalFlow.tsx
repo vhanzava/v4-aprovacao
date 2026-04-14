@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PieceViewer } from './PieceViewer'
 import { ReprovacaoPanel } from './ReprovacaoPanel'
 import type { Piece, Client } from '@/lib/types'
@@ -12,40 +12,79 @@ interface Props {
   token: string
 }
 
-type FlowState = 'viewing' | 'reprovando' | 'done'
+type FlowState = 'viewing' | 'reprovando'
 
 export function ClientApprovalFlow({ client, pieces, token }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [decided, setDecided] = useState<Set<string>>(new Set())
-  const [flowState, setFlowState] = useState<FlowState>('viewing')
-  const [submitting, setSubmitting] = useState(false)
+  // Pre-populate decided set from pieces already decided in previous sessions
+  const buildInitialDecided = () => {
+    const s = new Set<string>()
+    for (const p of pieces) {
+      if (p.status !== 'pendente') s.add(p.id)
+    }
+    return s
+  }
 
   const totalPieces = pieces.length
+
+  // Start at first undecided piece
+  const findFirstUndecided = () => {
+    const idx = pieces.findIndex(p => p.status === 'pendente')
+    return idx === -1 ? 0 : idx
+  }
+
+  const [decided, setDecided] = useState<Set<string>>(buildInitialDecided)
+  const [currentIndex, setCurrentIndex] = useState(findFirstUndecided)
+  const [flowState, setFlowState] = useState<FlowState>('viewing')
+  const [submitting, setSubmitting] = useState(false)
+  const [undoTarget, setUndoTarget] = useState<string | null>(null)
+  const [undoing, setUndoing] = useState(false)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const currentPiece = pieces[currentIndex]
   const allDone = decided.size === totalPieces
+
+  // Clear undo timer on unmount
+  useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
+
+  function startUndoWindow(pieceId: string) {
+    setUndoTarget(pieceId)
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    undoTimer.current = setTimeout(() => {
+      setUndoTarget(null)
+      advanceOrFinish()
+    }, 8000)
+  }
+
+  function advanceOrFinish() {
+    // Find next undecided piece after current
+    const nextIndex = pieces.findIndex((p, i) => i > currentIndex && !decided.has(p.id))
+    if (nextIndex !== -1) {
+      setCurrentIndex(nextIndex)
+      setFlowState('viewing')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    // If no next, we stay — allDone will be true
+  }
 
   async function handleApprove() {
     if (!currentPiece || submitting) return
     setSubmitting(true)
 
-    await fetch('/api/approval', {
+    const res = await fetch('/api/approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        piece_id: currentPiece.id,
-        status: 'aprovado',
-      }),
+      body: JSON.stringify({ token, piece_id: currentPiece.id, status: 'aprovado' }),
     })
 
-    setDecided(prev => new Set([...prev, currentPiece.id]))
+    if (res.ok) {
+      setDecided(prev => new Set([...prev, currentPiece.id]))
+      startUndoWindow(currentPiece.id)
+    }
     setSubmitting(false)
-    advanceOrFinish()
   }
 
   function handleReprove() {
     setFlowState('reprovando')
-    // Smooth scroll to reproval panel
     setTimeout(() => {
       document.getElementById('reproval-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
@@ -60,36 +99,48 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
     if (!currentPiece || submitting) return
     setSubmitting(true)
 
-    await fetch('/api/approval', {
+    const res = await fetch('/api/approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        piece_id: currentPiece.id,
-        status: 'reprovado',
-        ...feedback,
-      }),
+      body: JSON.stringify({ token, piece_id: currentPiece.id, status: 'reprovado', ...feedback }),
     })
 
-    setDecided(prev => new Set([...prev, currentPiece.id]))
+    if (res.ok) {
+      setDecided(prev => new Set([...prev, currentPiece.id]))
+      setFlowState('viewing')
+      startUndoWindow(currentPiece.id)
+    }
     setSubmitting(false)
-    setFlowState('viewing')
-    advanceOrFinish()
+  }
+
+  async function handleUndo() {
+    if (!undoTarget || undoing) return
+    setUndoing(true)
+
+    // Clear the advance timer
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+
+    const res = await fetch('/api/approval', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, piece_id: undoTarget }),
+    })
+
+    if (res.ok) {
+      setDecided(prev => {
+        const next = new Set(prev)
+        next.delete(undoTarget)
+        return next
+      })
+      setUndoTarget(null)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    setUndoing(false)
   }
 
   function handleCancelReprova() {
     setFlowState('viewing')
-    // Scroll back up to piece
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  function advanceOrFinish() {
-    const nextIndex = currentIndex + 1
-    if (nextIndex < totalPieces) {
-      setCurrentIndex(nextIndex)
-      setFlowState('viewing')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
   }
 
   if (totalPieces === 0 || allDone) {
@@ -97,6 +148,8 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
   }
 
   if (!currentPiece) return null
+
+  const isPieceDecided = decided.has(currentPiece.id)
 
   return (
     <div className="min-h-dvh bg-[#0A0A0A] flex flex-col">
@@ -114,43 +167,60 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
         <div id="piece-top" className="min-h-[85dvh] flex flex-col">
           <PieceViewer piece={currentPiece} />
 
-          {/* Action buttons — fixed at bottom when viewing */}
+          {/* Action buttons */}
           {flowState === 'viewing' && (
             <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/95 to-transparent pt-8 pb-6 px-6">
-              <div className="flex gap-3 max-w-sm mx-auto">
-                <button
-                  onClick={handleReprove}
-                  disabled={submitting}
-                  className="flex-1 flex items-center justify-center gap-2 border border-[#2E2E2E] bg-[#141414] hover:bg-[#1E1E1E] text-[#888888] hover:text-[#F5F5F5] font-medium py-4 rounded-2xl transition-all text-sm disabled:opacity-40"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Não aprovar
-                </button>
-                <button
-                  onClick={handleApprove}
-                  disabled={submitting}
-                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-medium py-4 rounded-2xl transition-all text-sm disabled:opacity-40"
-                >
-                  {submitting ? (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
+
+              {/* Undo bar — shows for 8 seconds after a decision */}
+              {undoTarget && (
+                <div className="flex items-center justify-between mb-3 px-4 py-2.5 bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl">
+                  <span className="text-[#888888] text-xs">Decisão registrada</span>
+                  <button
+                    onClick={handleUndo}
+                    disabled={undoing}
+                    className="text-[#E8192C] hover:text-red-400 text-xs font-medium transition-colors disabled:opacity-40"
+                  >
+                    {undoing ? '...' : 'Desfazer'}
+                  </button>
+                </div>
+              )}
+
+              {!isPieceDecided && (
+                <div className="flex gap-3 max-w-sm mx-auto">
+                  <button
+                    onClick={handleReprove}
+                    disabled={submitting}
+                    className="flex-1 flex items-center justify-center gap-2 border border-[#2E2E2E] bg-[#141414] hover:bg-[#1E1E1E] text-[#888888] hover:text-[#F5F5F5] font-medium py-4 rounded-2xl transition-all text-sm disabled:opacity-40"
+                  >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                  )}
-                  Aprovar
-                </button>
-              </div>
+                    Não aprovar
+                  </button>
+                  <button
+                    onClick={handleApprove}
+                    disabled={submitting}
+                    className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-medium py-4 rounded-2xl transition-all text-sm disabled:opacity-40"
+                  >
+                    {submitting ? (
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    Aprovar
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Reproval panel — expands below the piece */}
+        {/* Reproval panel */}
         {flowState === 'reprovando' && (
           <div id="reproval-panel" className="border-t border-[#1E1E1E]">
             <ReprovacaoPanel

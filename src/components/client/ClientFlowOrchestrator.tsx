@@ -32,7 +32,11 @@ export function ClientFlowOrchestrator({
   calendarNationalDates,
   laterPieces,
 }: Props) {
-  const [stage1Done, setStage1Done] = useState(stage1Themes.length === 0)
+  const pendingStage1 = stage1Themes.filter(t => t.status === 'pendente')
+
+  // Start with stage 1 "done" if there are no pending stage 1 themes
+  // (pre-decided ones are still shown in CalendarioApproval for undo purposes)
+  const [stage1Done, setStage1Done] = useState(pendingStage1.length === 0 && stage1Themes.length === 0)
 
   const hasStage1 = stage1Themes.length > 0
   const hasLater = laterPieces.length > 0
@@ -42,7 +46,7 @@ export function ClientFlowOrchestrator({
     return <EmptyState clientName={client.name} />
   }
 
-  // Show stage 1 calendar first
+  // Show stage 1 calendar if there are any stage 1 themes AND not yet done
   if (hasStage1 && !stage1Done) {
     return (
       <CalendarioApproval
@@ -57,18 +61,12 @@ export function ClientFlowOrchestrator({
           status: p.status,
         }))}
         nationalDates={calendarNationalDates}
-        onAllDone={() => {
-          if (hasLater) {
-            setStage1Done(true)
-          } else {
-            setStage1Done(true)
-          }
-        }}
+        onAllDone={() => setStage1Done(true)}
       />
     )
   }
 
-  // After stage 1 is done (or skipped), show stage 2/3 pieces
+  // Stage 1 done → show stage 2/3 pending pieces
   if (hasLater) {
     return (
       <ClientApprovalFlow

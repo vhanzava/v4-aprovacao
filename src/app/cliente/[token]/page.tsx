@@ -15,12 +15,14 @@ export default async function ClientePage({ params }: { params: Promise<{ token:
 
   if (!client || client.status === 'inativo') notFound()
 
-  // Get all pending pieces ordered by stage ASC, then created_at ASC
+  // Fetch all non-cancelled pieces:
+  // - Stage 1: include decided ones so client can see/undo previous decisions
+  // - Stage 2/3: only pendente (continue-from-last-point already works naturally)
   const { data: pieces } = await supabase
     .from('pieces')
     .select('*, assets:piece_assets(*), approval:approvals(*)')
     .eq('client_id', client.id)
-    .eq('status', 'pendente')
+    .neq('status', 'cancelada')
     .order('stage', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -32,9 +34,12 @@ export default async function ClientePage({ params }: { params: Promise<{ token:
 
   const allPieces = pieces ?? []
 
-  // Split stage 1 from the rest
+  // Stage 1: ALL non-cancelled (so pre-decided ones show with undo option)
   const stage1Pieces = allPieces.filter((p: { stage?: number }) => p.stage === 1)
-  const laterPieces = allPieces.filter((p: { stage?: number }) => !p.stage || p.stage > 1)
+  // Stage 2/3: only pending (continue-from-last-point works since decided ones already have status)
+  const laterPieces = allPieces.filter(
+    (p: { stage?: number; status: string }) => (!p.stage || p.stage > 1) && p.status === 'pendente'
+  )
 
   // Fetch national dates from the calendar linked to stage 1 pieces
   let calendarNationalDates: {

@@ -85,6 +85,54 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  try {
+    const body = await request.json()
+    const { token, piece_id } = body
+
+    if (!token || !piece_id) {
+      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
+    }
+
+    // Validate token
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id, status')
+      .eq('magic_token', token)
+      .single()
+
+    if (!client || client.status === 'inativo') {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
+    }
+
+    // Validate piece belongs to client
+    const { data: piece } = await supabase
+      .from('pieces')
+      .select('id, client_id')
+      .eq('id', piece_id)
+      .eq('client_id', client.id)
+      .single()
+
+    if (!piece) {
+      return NextResponse.json({ error: 'Peça não encontrada' }, { status: 404 })
+    }
+
+    // Delete approval record(s)
+    await supabase.from('approvals').delete().eq('piece_id', piece_id)
+
+    // Reset piece status to pendente
+    await supabase.from('pieces').update({ status: 'pendente' }).eq('id', piece_id)
+
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function cleanupAssets(supabase: any, piece_id: string) {
   try {
