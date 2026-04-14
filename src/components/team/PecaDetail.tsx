@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { cn, formatDate, formatLabel, purposeLabel, statusLabel, statusColor } from '@/lib/utils'
@@ -12,6 +13,17 @@ interface Props {
 
 export function PecaDetail({ piece, role }: Props) {
   const approval = piece.approval as typeof piece.approval & { status?: string }
+  const [copied, setCopied] = useState(false)
+
+  const clientToken = (piece.client as { magic_token?: string } | undefined)?.magic_token
+
+  async function handleCopyLink() {
+    if (!clientToken) return
+    const url = `${window.location.origin}/cliente/${clientToken}?piece=${piece.id}`
+    await navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -39,9 +51,38 @@ export function PecaDetail({ piece, role }: Props) {
             )}
           </div>
         </div>
-        <span className={cn('text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0', statusColor(piece.status))}>
-          {statusLabel(piece.status)}
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {clientToken && piece.status === 'pendente' && (
+            <button
+              onClick={handleCopyLink}
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
+                copied
+                  ? 'border-emerald-500/30 text-emerald-400 bg-emerald-400/5'
+                  : 'border-[#2E2E2E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#555555]'
+              )}
+            >
+              {copied ? (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Copiado
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Copiar link direto
+                </>
+              )}
+            </button>
+          )}
+          <span className={cn('text-xs font-medium px-3 py-1.5 rounded-lg', statusColor(piece.status))}>
+            {statusLabel(piece.status)}
+          </span>
+        </div>
       </div>
 
       {/* Drive link */}

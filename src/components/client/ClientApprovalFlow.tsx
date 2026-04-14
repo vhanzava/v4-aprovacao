@@ -10,11 +10,12 @@ interface Props {
   client: Pick<Client, 'id' | 'name'>
   pieces: Piece[]
   token: string
+  singlePieceMode?: boolean
 }
 
 type FlowState = 'viewing' | 'reprovando'
 
-export function ClientApprovalFlow({ client, pieces, token }: Props) {
+export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: Props) {
   // Pre-populate decided set from pieces already decided in previous sessions
   const buildInitialDecided = () => {
     const s = new Set<string>()
@@ -144,7 +145,7 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
   }
 
   if (totalPieces === 0 || allDone) {
-    return <EmptyState clientName={client.name} />
+    return <EmptyState clientName={client.name} singlePieceMode={singlePieceMode} />
   }
 
   if (!currentPiece) return null
@@ -236,7 +237,7 @@ export function ClientApprovalFlow({ client, pieces, token }: Props) {
   )
 }
 
-function EmptyState({ clientName }: { clientName: string }) {
+function EmptyState({ clientName, singlePieceMode }: { clientName: string; singlePieceMode?: boolean }) {
   return (
     <div className="min-h-dvh bg-[#0A0A0A] flex flex-col items-center justify-center px-6 text-center">
       <div className="w-16 h-16 rounded-full bg-[#141414] flex items-center justify-center mb-6">
@@ -244,9 +245,13 @@ function EmptyState({ clientName }: { clientName: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <p className="text-[#F5F5F5] font-medium text-lg">Tudo em dia!</p>
+      <p className="text-[#F5F5F5] font-medium text-lg">
+        {singlePieceMode ? 'Respondido!' : 'Tudo em dia!'}
+      </p>
       <p className="text-[#888888] text-sm mt-2 max-w-xs">
-        Não há peças aguardando sua aprovação no momento.
+        {singlePieceMode
+          ? 'Sua resposta foi registrada. Você pode fechar esta página.'
+          : 'Não há peças aguardando sua aprovação no momento.'}
       </p>
       <div className="mt-8">
         <span className="text-[#555555] text-xs">
