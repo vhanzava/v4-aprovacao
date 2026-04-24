@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getReprovacaoFlow } from '@/lib/reproval-flows'
 import { cn } from '@/lib/utils'
 import type { Piece } from '@/lib/types'
@@ -29,15 +29,20 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   const [step2Answers, setStep2Answers] = useState<string[]>([])
   const [step2Open, setStep2Open] = useState('')
   const [step3Text, setStep3Text] = useState('')
-  // Local guard to prevent double-tap on mobile
-  const [localSending, setLocalSending] = useState(false)
 
-  // Reset local guard whenever the parent confirms it's done (success or failure)
+  // Ref-based guard: synchronous, immune to React batching delays on mobile
+  const sendingRef = useRef(false)
+  const [showSpinner, setShowSpinner] = useState(false)
+
+  // Reset when parent confirms it's done (success or failure)
   useEffect(() => {
-    if (!submitting) setLocalSending(false)
+    if (!submitting) {
+      sendingRef.current = false
+      setShowSpinner(false)
+    }
   }, [submitting])
 
-  const isSending = submitting || localSending
+  const isSending = submitting || showSpinner
 
   // Which step1 answers have step2 defined
   const step1AnswersWithStep2 = step1Answers.filter(a => a !== 'outro' && !!flow.step2Map[a])
@@ -63,31 +68,27 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
     } else {
       setStep(3)
     }
-    setTimeout(() => {
-      document.getElementById('reproval-step-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
   }
 
   function handleNextFromStep2() {
     setStep(3)
-    setTimeout(() => {
-      document.getElementById('reproval-step-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
+  }
+
+  function fireSubmit(payload: Parameters<typeof onComplete>[0]) {
+    if (sendingRef.current || submitting) return
+    sendingRef.current = true
+    setShowSpinner(true)
+    onComplete(payload)
   }
 
   function handleSubmit() {
-    if (!step3Text.trim() || isSending) return
-    setLocalSending(true)
-
+    if (!step3Text.trim()) return
     const allStep1: string[] = [
       ...step1Answers.filter(a => a !== 'outro'),
       ...(step1Open.trim() ? [`Outro: ${step1Open.trim()}`] : []),
     ]
-    const allStep2: string[] = [
-      ...step2Answers.filter(a => a !== 'outro'),
-    ]
-
-    onComplete({
+    const allStep2: string[] = [...step2Answers.filter(a => a !== 'outro')]
+    fireSubmit({
       step1_answers: allStep1,
       step2_answers: allStep2,
       step2_open: step2Open.trim(),
@@ -101,33 +102,38 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   // ── Stage 2: simple open-text reproval ──────────────────────────────────
   if (isStage2) {
     return (
-      <div className="bg-[#0A0A0A] min-h-[40dvh]">
-        <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[#F5F5F5] font-medium">O que precisa mudar?</p>
-            <button
-              onClick={onCancel}
-              className="text-[#555555] hover:text-[#888888] text-xs flex items-center gap-1 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-              Cancelar
-            </button>
-          </div>
+      <div className="bg-[#0A0A0A] flex flex-col min-h-[50dvh]">
+        {/* Header */}
+        <div className="px-4 pt-6 pb-4 max-w-lg mx-auto w-full flex items-center justify-between">
+          <p className="text-[#F5F5F5] font-medium">O que precisa mudar?</p>
+          <button
+            onClick={onCancel}
+            className="text-[#555555] hover:text-[#888888] text-xs flex items-center gap-1 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+            Cancelar
+          </button>
+        </div>
+
+        {/* Textarea — no autoFocus, stays small so button is always visible */}
+        <div className="flex-1 px-4 max-w-lg mx-auto w-full">
           <textarea
-            autoFocus
             value={step3Text}
             onChange={e => setStep3Text(e.target.value)}
             placeholder="Descreve o que não agradou no copy ou na legenda..."
-            rows={4}
+            rows={3}
             className="w-full bg-[#141414] border border-[#2E2E2E] rounded-xl px-4 py-3 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] resize-none leading-relaxed transition-colors"
           />
+        </div>
+
+        {/* Submit — sticky at bottom, always visible above keyboard */}
+        <div className="sticky bottom-0 px-4 pb-8 pt-4 max-w-lg mx-auto w-full bg-[#0A0A0A]">
           <button
-            onClick={() => {
+            onPointerDown={() => {
               if (!step3Text.trim() || isSending) return
-              setLocalSending(true)
-              onComplete({ step1_answers: [], step2_answers: [], step2_open: '', step3_text: step3Text.trim() })
+              fireSubmit({ step1_answers: [], step2_answers: [], step2_open: '', step3_text: step3Text.trim() })
             }}
             disabled={!step3Text.trim() || isSending}
             className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl text-sm transition-colors flex items-center justify-center gap-2"
@@ -147,12 +153,12 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
     )
   }
 
-  // ── Stage 3 (default): structured reproval flow ──────────────────────────
+  // ── Stage 3: structured reproval flow ───────────────────────────────────
   return (
-    <div className="bg-[#0A0A0A] min-h-[60dvh]">
+    <div className="bg-[#0A0A0A] flex flex-col">
       {/* Panel header */}
-      <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
-        <div className="flex items-center justify-between mb-1">
+      <div className="px-4 pt-6 pb-2 max-w-lg mx-auto w-full">
+        <div className="flex items-center justify-between mb-2">
           <p className="text-[#555555] text-xs">
             Passo {currentStepNum} de {totalSteps}
           </p>
@@ -167,7 +173,7 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
           </button>
         </div>
         {/* Step progress dots */}
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
               key={i}
@@ -180,13 +186,15 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
         </div>
       </div>
 
-      <div id="reproval-step-content" className="px-4 pb-10 max-w-lg mx-auto space-y-6">
+      {/* Step content — scrollable if needed */}
+      <div className="px-4 pt-4 pb-2 max-w-lg mx-auto w-full space-y-5">
         {/* Step 1 */}
         {step === 1 && (
-          <StepContainer
-            question={flow.step1.question}
-            hint="Pode selecionar mais de uma opção"
-          >
+          <>
+            <div>
+              <h3 className="text-[#F5F5F5] text-xl font-semibold leading-snug">{flow.step1.question}</h3>
+              <p className="text-[#555555] text-sm mt-1">Pode selecionar mais de uma opção</p>
+            </div>
             <div className="space-y-2">
               {flow.step1.options.map(opt => (
                 <div key={opt.value}>
@@ -197,53 +205,45 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
                   />
                   {opt.opens_field && step1Answers.includes(opt.value) && (
                     <textarea
-                      autoFocus
                       value={step1Open}
                       onChange={e => setStep1Open(e.target.value)}
                       placeholder="Descreve o que não agradou..."
-                      rows={3}
+                      rows={2}
                       className="mt-2 w-full bg-[#141414] border border-[#E8192C]/30 rounded-xl px-4 py-3 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] resize-none leading-relaxed"
                     />
                   )}
                 </div>
               ))}
             </div>
-
-            <button
-              onClick={handleNextFromStep1}
-              disabled={step1Answers.length === 0 && !step1Open.trim()}
-              className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm mt-2"
-            >
-              Continuar
-            </button>
-          </StepContainer>
+          </>
         )}
 
         {/* Step 2 */}
         {step === 2 && step1AnswersWithStep2.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {step1AnswersWithStep2.map(trigger => {
               const step2Config = flow.step2Map[trigger]
               if (!step2Config) return null
 
               if (step2Config.type === 'date_picker') {
                 return (
-                  <StepContainer key={trigger} question={step2Config.question}>
+                  <div key={trigger} className="space-y-4">
+                    <h3 className="text-[#F5F5F5] text-xl font-semibold leading-snug">{step2Config.question}</h3>
                     <input
                       type="date"
                       onChange={e => setStep2Open(e.target.value)}
                       className="w-full bg-[#141414] border border-[#2E2E2E] rounded-xl px-4 py-3 text-sm text-[#F5F5F5] focus:outline-none focus:border-[#E8192C] transition-colors"
                     />
-                  </StepContainer>
+                  </div>
                 )
               }
 
               return (
-                <StepContainer
-                  key={trigger}
-                  question={step2Config.question}
-                  hint="Pode selecionar mais de uma opção"
-                >
+                <div key={trigger} className="space-y-4">
+                  <div>
+                    <h3 className="text-[#F5F5F5] text-xl font-semibold leading-snug">{step2Config.question}</h3>
+                    <p className="text-[#555555] text-sm mt-1">Pode selecionar mais de uma opção</p>
+                  </div>
                   <div className="space-y-2">
                     {step2Config.options?.map(opt => (
                       <div key={opt.value}>
@@ -264,75 +264,66 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
                       </div>
                     ))}
                   </div>
-                </StepContainer>
+                </div>
               )
             })}
-
-            <button
-              onClick={handleNextFromStep2}
-              disabled={step2Answers.length === 0 && !step2Open.trim()}
-              className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm"
-            >
-              Continuar
-            </button>
           </div>
         )}
 
-        {/* Step 3 — open field, always shown */}
+        {/* Step 3 — open text */}
         {step === 3 && (
-          <StepContainer question={flow.step3.question}>
+          <div className="space-y-3">
+            <h3 className="text-[#F5F5F5] text-xl font-semibold leading-snug">{flow.step3.question}</h3>
             <textarea
-              autoFocus
               value={step3Text}
               onChange={e => setStep3Text(e.target.value)}
               placeholder={flow.step3.placeholder}
-              rows={5}
+              rows={3}
               className="w-full bg-[#141414] border border-[#2E2E2E] rounded-xl px-4 py-3 text-sm text-[#F5F5F5] placeholder-[#555555] focus:outline-none focus:border-[#E8192C] resize-none leading-relaxed transition-colors"
             />
-            <p className="text-[#555555] text-xs mt-2 text-right">
-              {step3Text.length} caracteres
-            </p>
-
-            <button
-              onClick={handleSubmit}
-              disabled={!step3Text.trim() || isSending}
-              className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm mt-2 flex items-center justify-center gap-2"
-            >
-              {isSending ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Enviando...
-                </>
-              ) : (
-                'Enviar feedback'
-              )}
-            </button>
-          </StepContainer>
+            <p className="text-[#555555] text-xs text-right">{step3Text.length} caracteres</p>
+          </div>
         )}
       </div>
-    </div>
-  )
-}
 
-function StepContainer({
-  question,
-  hint,
-  children,
-}: {
-  question: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-[#F5F5F5] text-xl font-semibold leading-snug">{question}</h3>
-        {hint && <p className="text-[#555555] text-sm mt-1">{hint}</p>}
+      {/* Action button — sticky at bottom, always visible above keyboard */}
+      <div className="sticky bottom-0 px-4 pb-8 pt-3 max-w-lg mx-auto w-full bg-[#0A0A0A]">
+        {step === 1 && (
+          <button
+            onPointerDown={handleNextFromStep1}
+            disabled={step1Answers.length === 0 && !step1Open.trim()}
+            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm"
+          >
+            Continuar
+          </button>
+        )}
+        {step === 2 && (
+          <button
+            onPointerDown={handleNextFromStep2}
+            disabled={step2Answers.length === 0 && !step2Open.trim()}
+            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm"
+          >
+            Continuar
+          </button>
+        )}
+        {step === 3 && (
+          <button
+            onPointerDown={handleSubmit}
+            disabled={!step3Text.trim() || isSending}
+            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm flex items-center justify-center gap-2"
+          >
+            {isSending ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Enviando...
+              </>
+            ) : 'Enviar feedback'}
+          </button>
+        )}
       </div>
-      {children}
     </div>
   )
 }
@@ -349,7 +340,7 @@ function OptionButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onPointerDown={onClick}
       className={cn(
         'w-full text-left px-5 py-4 rounded-2xl border text-sm transition-all',
         selected
