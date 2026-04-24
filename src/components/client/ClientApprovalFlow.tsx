@@ -150,6 +150,30 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // 'sent' must be checked BEFORE allDone — when reproval is the last piece,
+  // both allDone and flowState='sent' become true in the same render batch.
+  // Without this guard, the allDone early-return below would swallow the confirmation screen.
+  if (flowState === 'sent') {
+    return (
+      <div className="min-h-dvh bg-[#0A0A0A] flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-20 h-20 rounded-full bg-[#1E1E1E] flex items-center justify-center mb-6">
+          <svg className="w-10 h-10 text-[#E8192C]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </div>
+        <p className="text-[#F5F5F5] font-semibold text-xl mb-2">Feedback enviado!</p>
+        <p className="text-[#888888] text-sm max-w-xs leading-relaxed">
+          Sua mensagem foi registrada. O time vai analisar e refazer a peça.
+        </p>
+        <div className="mt-8">
+          <span className="text-[#555555] text-xs">
+            <span className="text-[#E8192C] font-medium">V4</span> Aprovações
+          </span>
+        </div>
+      </div>
+    )
+  }
+
   if (totalPieces === 0 || allDone) {
     return <EmptyState clientName={client.name} singlePieceMode={singlePieceMode} />
   }
@@ -171,23 +195,7 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
       {/* Content */}
       <div className="flex-1 pt-4">
 
-        {/* Sent confirmation screen */}
-        {flowState === 'sent' && (
-          <div className="min-h-[85dvh] flex flex-col items-center justify-center px-6 text-center">
-            <div className="w-20 h-20 rounded-full bg-[#1E1E1E] flex items-center justify-center mb-6 animate-pulse">
-              <svg className="w-10 h-10 text-[#E8192C]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <p className="text-[#F5F5F5] font-semibold text-xl mb-2">Feedback enviado!</p>
-            <p className="text-[#888888] text-sm max-w-xs leading-relaxed">
-              Sua mensagem foi registrada. O time vai analisar e refazer a peça.
-            </p>
-          </div>
-        )}
-
         {/* Piece viewer section */}
-        {flowState !== 'sent' && (
         <div id="piece-top" className="min-h-[85dvh] flex flex-col">
           <PieceViewer piece={currentPiece} />
 
@@ -243,7 +251,6 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
             </div>
           )}
         </div>
-        )}
 
         {/* Reproval panel */}
         {flowState === 'reprovando' && (
