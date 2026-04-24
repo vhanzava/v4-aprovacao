@@ -29,6 +29,9 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   const [step2Answers, setStep2Answers] = useState<string[]>([])
   const [step2Open, setStep2Open] = useState('')
   const [step3Text, setStep3Text] = useState('')
+  // Local guard to prevent double-tap on mobile
+  const [localSending, setLocalSending] = useState(false)
+  const isSending = submitting || localSending
 
   // Which step1 answers have step2 defined
   const step1AnswersWithStep2 = step1Answers.filter(a => a !== 'outro' && !!flow.step2Map[a])
@@ -67,7 +70,8 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   }
 
   function handleSubmit() {
-    if (!step3Text.trim()) return
+    if (!step3Text.trim() || isSending) return
+    setLocalSending(true)
 
     const allStep1: string[] = [
       ...step1Answers.filter(a => a !== 'outro'),
@@ -115,13 +119,22 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
           />
           <button
             onClick={() => {
-              if (!step3Text.trim() || submitting) return
+              if (!step3Text.trim() || isSending) return
+              setLocalSending(true)
               onComplete({ step1_answers: [], step2_answers: [], step2_open: '', step3_text: step3Text.trim() })
             }}
-            disabled={!step3Text.trim() || submitting}
-            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl text-sm transition-colors"
+            disabled={!step3Text.trim() || isSending}
+            className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl text-sm transition-colors flex items-center justify-center gap-2"
           >
-            {submitting ? 'Enviando...' : 'Enviar feedback'}
+            {isSending ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Enviando...
+              </>
+            ) : 'Enviar feedback'}
           </button>
         </div>
       </div>
@@ -276,10 +289,10 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
 
             <button
               onClick={handleSubmit}
-              disabled={!step3Text.trim() || submitting}
+              disabled={!step3Text.trim() || isSending}
               className="w-full bg-[#E8192C] hover:bg-[#C41020] disabled:opacity-30 text-white font-medium py-4 rounded-2xl transition-colors text-sm mt-2 flex items-center justify-center gap-2"
             >
-              {submitting ? (
+              {isSending ? (
                 <>
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
