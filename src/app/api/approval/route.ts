@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     // Validate piece belongs to client
     const { data: piece } = await supabase
       .from('pieces')
-      .select('id, title, format, purpose, status, client_id')
+      .select('id, title, format, purpose, client_id')
       .eq('id', piece_id)
       .eq('client_id', client.id)
       .single()
@@ -38,21 +38,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Peça não encontrada' }, { status: 404 })
     }
 
-    if (piece.status !== 'pendente') {
-      return NextResponse.json({ error: 'Peça já respondida' }, { status: 409 })
-    }
-
-    // Insert approval
-    const { error: approvalError } = await supabase.from('approvals').insert({
-      piece_id,
-      status,
-      step1_answers: step1_answers ?? null,
-      step2_answers: step2_answers ?? null,
-      step2_open: step2_open ?? null,
-      step3_text: step3_text ?? null,
-    })
+    // Upsert approval — handles retries gracefully (e.g. previous attempt
+    // saved to DB but response never reached the client)
+    const { error: approvalError } = await supabase.from('approvals').upsert(
+      {
+        piece_id,
+        status,
+        step1_answers: step1_answers ?? null,
+        step2_answers: step2_answers ?? null,
+        step2_open: step2_open ?? null,
+        step3_text: step3_text ?? null,
+        decided_at: new Date().toISOString(),
+      },
+      { onConflict: 'piece_id' }
+    )
 
     if (approvalError) {
+      console.error('[approval] upsert error:', approvalError)
       return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 })
     }
 
