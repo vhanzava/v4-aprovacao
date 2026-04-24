@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getReprovacaoFlow } from '@/lib/reproval-flows'
 import { cn } from '@/lib/utils'
 import type { Piece } from '@/lib/types'
@@ -31,6 +31,12 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
   const [step3Text, setStep3Text] = useState('')
   // Local guard to prevent double-tap on mobile
   const [localSending, setLocalSending] = useState(false)
+
+  // Reset local guard whenever the parent confirms it's done (success or failure)
+  useEffect(() => {
+    if (!submitting) setLocalSending(false)
+  }, [submitting])
+
   const isSending = submitting || localSending
 
   // Which step1 answers have step2 defined
