@@ -55,7 +55,10 @@ export async function POST(request: Request) {
 
     if (approvalError) {
       console.error('[approval] upsert error:', approvalError)
-      return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Erro ao salvar', detail: approvalError.message, code: approvalError.code },
+        { status: 500 }
+      )
     }
 
     // Update piece status

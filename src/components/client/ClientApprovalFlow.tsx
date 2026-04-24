@@ -121,10 +121,11 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
           startUndoWindow(currentPiece.id)
         }, 2500)
       } else {
-        setSubmitError('Não foi possível enviar. Tenta de novo.')
+        const body = await res.json().catch(() => ({}))
+        setSubmitError(`Erro ${res.status}${body.code ? ` (${body.code})` : ''}: ${body.detail ?? body.error ?? 'desconhecido'}`)
       }
-    } catch {
-      setSubmitError('Erro de conexão. Verifique sua internet e tente novamente.')
+    } catch (err) {
+      setSubmitError(`Erro de conexão: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSubmitting(false)
     }
