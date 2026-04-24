@@ -37,6 +37,7 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
   const [currentIndex, setCurrentIndex] = useState(findFirstUndecided)
   const [flowState, setFlowState] = useState<FlowState>('viewing')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [undoTarget, setUndoTarget] = useState<string | null>(null)
   const [undoing, setUndoing] = useState(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -99,25 +100,34 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
   }) {
     if (!currentPiece || submitting) return
     setSubmitting(true)
+    setSubmitError(null)
 
-    const res = await fetch('/api/approval', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, piece_id: currentPiece.id, status: 'reprovado', ...feedback }),
-    })
+    try {
+      const res = await fetch('/api/approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, piece_id: currentPiece.id, status: 'reprovado', ...feedback }),
+      })
 
-    if (res.ok) {
-      setDecided(prev => new Set([...prev, currentPiece.id]))
-      // Show explicit confirmation screen before advancing
-      setFlowState('sent')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      // Advance after 2.5 seconds
-      setTimeout(() => {
-        setFlowState('viewing')
-        startUndoWindow(currentPiece.id)
-      }, 2500)
+      // 409 = piece was already saved on a previous attempt; treat as success
+      if (res.ok || res.status === 409) {
+        setDecided(prev => new Set([...prev, currentPiece.id]))
+        // Show explicit confirmation screen before advancing
+        setFlowState('sent')
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        // Advance after 2.5 seconds
+        setTimeout(() => {
+          setFlowState('viewing')
+          startUndoWindow(currentPiece.id)
+        }, 2500)
+      } else {
+        setSubmitError('Não foi possível enviar. Tenta de novo.')
+      }
+    } catch {
+      setSubmitError('Erro de conexão. Verifique sua internet e tente novamente.')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   async function handleUndo() {
@@ -260,6 +270,7 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
               onComplete={handleReprovacaoComplete}
               onCancel={handleCancelReprova}
               submitting={submitting}
+              submitError={submitError}
             />
           </div>
         )}

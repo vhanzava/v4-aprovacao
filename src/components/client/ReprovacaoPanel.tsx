@@ -15,11 +15,12 @@ interface Props {
   }) => void
   onCancel: () => void
   submitting: boolean
+  submitError?: string | null
 }
 
 type Step = 1 | 2 | 3
 
-export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Props) {
+export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting, submitError }: Props) {
   const isStage2 = piece.stage === 2
   const flow = getReprovacaoFlow(piece.format, piece.purpose)
 
@@ -130,6 +131,9 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
 
         {/* Submit — sticky at bottom, always visible above keyboard */}
         <div className="sticky bottom-0 px-4 pb-8 pt-4 max-w-lg mx-auto w-full bg-[#0A0A0A]">
+          {submitError && (
+            <p className="text-[#E8192C] text-xs text-center mb-3">{submitError}</p>
+          )}
           <button
             onPointerDown={() => {
               if (!step3Text.trim() || isSending) return
@@ -288,6 +292,9 @@ export function ReprovacaoPanel({ piece, onComplete, onCancel, submitting }: Pro
 
       {/* Action button — sticky at bottom, always visible above keyboard */}
       <div className="sticky bottom-0 px-4 pb-8 pt-3 max-w-lg mx-auto w-full bg-[#0A0A0A]">
+        {submitError && step === 3 && (
+          <p className="text-[#E8192C] text-xs text-center mb-3">{submitError}</p>
+        )}
         {step === 1 && (
           <button
             onPointerDown={handleNextFromStep1}
