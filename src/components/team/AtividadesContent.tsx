@@ -236,7 +236,6 @@ export function AtividadesContent({
             </thead>
             <tbody className="divide-y divide-[#2E2E2E]">
               {events.map(event => {
-                const isUpload = event.type === 'upload'
                 const isBeingDeleted = deleting === event.piece_id
                 const isConfirming = confirmingDelete === event.piece_id
 
@@ -325,11 +324,10 @@ export function AtividadesContent({
                       )}
                     </td>
 
-                    {/* Delete — admin only, only on upload rows (one button per piece) */}
+                    {/* Delete — admin only, visible on all rows */}
                     {isAdmin && (
                       <td className="px-2 py-3">
-                        {isUpload && (
-                          isConfirming ? (
+                        {isConfirming ? (
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => handleDelete(event.piece_id)}
@@ -345,18 +343,17 @@ export function AtividadesContent({
                                 ✕
                               </button>
                             </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmingDelete(event.piece_id)}
-                              disabled={!!deleting}
-                              title="Apagar peça"
-                              className="text-[#2E2E2E] hover:text-red-400 transition-colors disabled:opacity-40"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingDelete(event.piece_id)}
+                            disabled={!!deleting}
+                            title="Apagar peça"
+                            className="text-[#2E2E2E] hover:text-red-400 transition-colors disabled:opacity-40"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         )}
                       </td>
                     )}

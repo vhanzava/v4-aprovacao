@@ -40,6 +40,7 @@ export function NovaPecaForm({ clients }: Props) {
     copy: '',
     post_caption: '',
     post_date: '',
+    drive_url: '',
   })
 
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +100,7 @@ export function NovaPecaForm({ clients }: Props) {
           copy: copyForm.copy || null,
           post_caption: copyForm.post_caption || null,
           post_date: copyForm.post_date || null,
+          drive_url: copyForm.drive_url || null,
           assets: [],
         }),
       })
@@ -317,6 +319,16 @@ export function NovaPecaForm({ clients }: Props) {
               placeholder="Texto do post (caption), incluindo emojis e hashtags..."
               rows={4}
               className={cn(inputClass, 'resize-none leading-relaxed')}
+            />
+          </Field>
+
+          <Field label="Link do Drive" hint="Opcional — cole o link de compartilhamento">
+            <input
+              type="url"
+              value={copyForm.drive_url}
+              onChange={e => setCopyForm(p => ({ ...p, drive_url: e.target.value }))}
+              placeholder="https://drive.google.com/file/d/..."
+              className={inputClass}
             />
           </Field>
 
