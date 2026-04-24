@@ -71,6 +71,14 @@ export function ClientDetailContent({ client, pendentes, aprovadas, reprovadas, 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<EditForm | null>(null)
   const [saving, setSaving] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  async function handleCopyLink(pieceId: string) {
+    const url = `${window.location.origin}/cliente/${client.magic_token}?piece=${pieceId}`
+    await navigator.clipboard.writeText(url)
+    setCopiedId(pieceId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   const total = pendentes.length + aprovadas.length + reprovadas.length + canceladas.length
   const approvalRate = (pendentes.length + aprovadas.length + reprovadas.length) > 0
@@ -232,6 +240,29 @@ export function ClientDetailContent({ client, pendentes, aprovadas, reprovadas, 
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleCopyLink(piece.id)}
+                        title="Copiar link direto para o cliente"
+                        className={cn(
+                          'text-xs border px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5',
+                          copiedId === piece.id
+                            ? 'border-emerald-500/30 text-emerald-400 bg-emerald-400/5'
+                            : 'border-[#2E2E2E] text-[#555555] hover:text-[#F5F5F5]'
+                        )}
+                      >
+                        {copiedId === piece.id ? (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Copiado
+                          </>
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        )}
+                      </button>
                       <Link
                         href={`/pecas/${piece.id}`}
                         className="text-[#555555] hover:text-[#F5F5F5] text-xs border border-[#2E2E2E] px-2.5 py-1.5 rounded-lg transition-colors"
