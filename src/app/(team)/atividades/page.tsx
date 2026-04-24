@@ -1,8 +1,12 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/session'
 import { AtividadesContent } from '@/components/team/AtividadesContent'
 
 export default async function AtividadesPage() {
-  const supabase = await createServiceClient()
+  const [supabase, session] = await Promise.all([
+    createServiceClient(),
+    getSession(),
+  ])
 
   const { data: pieces } = await supabase
     .from('pieces')
@@ -11,5 +15,5 @@ export default async function AtividadesPage() {
     .limit(200)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <AtividadesContent pieces={(pieces ?? []) as any} />
+  return <AtividadesContent pieces={(pieces ?? []) as any} role={session?.role ?? null} />
 }

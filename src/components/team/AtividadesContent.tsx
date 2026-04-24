@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { cn, formatDateTime, formatLabel, purposeLabel } from '@/lib/utils'
+import { cn, formatDateTime, formatLabel } from '@/lib/utils'
+import type { Role } from '@/lib/types'
 
 interface Approval {
   status: string
@@ -93,10 +94,22 @@ function filterByDate(events: ActivityEvent[], filter: DateFilter): ActivityEven
   return events.filter(e => new Date(e.timestamp) >= cutoff)
 }
 
-export function AtividadesContent({ pieces }: { pieces: PieceActivity[] }) {
+export function AtividadesContent({
+  pieces: initialPieces,
+  role,
+}: {
+  pieces: PieceActivity[]
+  role: Role | null
+}) {
+  const [pieces, setPieces] = useState(initialPieces)
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('todos')
   const [dateFilter, setDateFilter] = useState<DateFilter>('todos')
+  // confirmingDelete: piece_id being confirmed
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  const isAdmin = role === 'admin'
 
   // Unique clients from pieces
   const clients = useMemo(() => {
@@ -136,6 +149,19 @@ export function AtividadesContent({ pieces }: { pieces: PieceActivity[] }) {
     { value: '30d', label: '30 dias' },
     { value: 'todos', label: 'Tudo' },
   ]
+
+  async function handleDelete(pieceId: string) {
+    if (deleting) return
+    setDeleting(pieceId)
+    setConfirmingDelete(null)
+
+    const res = await fetch(`/api/pieces/${pieceId}`, { method: 'DELETE' })
+
+    if (res.ok) {
+      setPieces(prev => prev.filter(p => p.id !== pieceId))
+    }
+    setDeleting(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -205,89 +231,138 @@ export function AtividadesContent({ pieces }: { pieces: PieceActivity[] }) {
                 <th className="text-left px-4 py-3 text-[#555555] text-xs font-medium">Ação</th>
                 <th className="text-left px-4 py-3 text-[#555555] text-xs font-medium w-28">Cliente</th>
                 <th className="text-left px-4 py-3 text-[#555555] text-xs font-medium">Detalhes</th>
+                {isAdmin && <th className="w-10" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2E2E2E]">
-              {events.map(event => (
-                <tr key={event.id} className="hover:bg-[#1E1E1E] transition-colors">
-                  {/* Data */}
-                  <td className="px-4 py-3 text-[#555555] text-xs whitespace-nowrap">
-                    {formatDateTime(event.timestamp)}
-                  </td>
+              {events.map(event => {
+                const isUpload = event.type === 'upload'
+                const isBeingDeleted = deleting === event.piece_id
+                const isConfirming = confirmingDelete === event.piece_id
 
-                  {/* Quem */}
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'text-xs font-medium capitalize',
-                      event.type === 'upload' ? 'text-[#888888]' : 'text-[#F5F5F5]'
-                    )}>
-                      {event.actor}
-                    </span>
-                  </td>
+                return (
+                  <tr
+                    key={event.id}
+                    className={cn(
+                      'transition-colors',
+                      isBeingDeleted ? 'opacity-40' : 'hover:bg-[#1E1E1E]'
+                    )}
+                  >
+                    {/* Data */}
+                    <td className="px-4 py-3 text-[#555555] text-xs whitespace-nowrap">
+                      {formatDateTime(event.timestamp)}
+                    </td>
 
-                  {/* Ação */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {event.type === 'upload' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#555555] flex-shrink-0" />
-                      )}
-                      {event.type === 'aprovado' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                      )}
-                      {event.type === 'reprovado' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
-                      )}
-                      <span className="text-[#888888] text-xs">
-                        {event.type === 'upload' && 'subiu'}
-                        {event.type === 'aprovado' && 'aprovou'}
-                        {event.type === 'reprovado' && 'recusou'}
+                    {/* Quem */}
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        'text-xs font-medium capitalize',
+                        event.type === 'upload' ? 'text-[#888888]' : 'text-[#F5F5F5]'
+                      )}>
+                        {event.actor}
                       </span>
-                      <Link
-                        href={`/pecas/${event.piece_id}`}
-                        className="text-[#F5F5F5] hover:text-[#E8192C] transition-colors truncate max-w-[200px]"
-                        title={event.piece_title}
-                      >
-                        {event.piece_title}
-                      </Link>
-                      {event.piece_format && (
-                        <span className="text-[10px] text-[#555555] bg-[#2A2A2A] px-1.5 py-0.5 rounded flex-shrink-0">
-                          {formatLabel(event.piece_format)}
+                    </td>
+
+                    {/* Ação */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {event.type === 'upload' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#555555] flex-shrink-0" />
+                        )}
+                        {event.type === 'aprovado' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                        )}
+                        {event.type === 'reprovado' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                        )}
+                        <span className="text-[#888888] text-xs">
+                          {event.type === 'upload' && 'subiu'}
+                          {event.type === 'aprovado' && 'aprovou'}
+                          {event.type === 'reprovado' && 'recusou'}
                         </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Cliente */}
-                  <td className="px-4 py-3 text-[#888888] text-xs">{event.client_name}</td>
-
-                  {/* Detalhes reprovação — inline, à direita */}
-                  <td className="px-4 py-3">
-                    {event.type === 'reprovado' && event.approval && (
-                      <div className="flex items-start gap-3 flex-wrap text-xs">
-                        {event.approval.step1_answers && event.approval.step1_answers.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[#555555]">O que:</span>
-                            <span className="text-[#888888]">{event.approval.step1_answers.join(', ')}</span>
-                          </div>
-                        )}
-                        {event.approval.step2_answers && event.approval.step2_answers.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[#555555]">Detalhe:</span>
-                            <span className="text-[#888888]">{event.approval.step2_answers.join(', ')}</span>
-                          </div>
-                        )}
-                        {event.approval.step3_text && (
-                          <div className="flex items-center gap-1.5 max-w-xs">
-                            <span className="text-[#555555] flex-shrink-0">"</span>
-                            <span className="text-[#888888] italic truncate">{event.approval.step3_text}</span>
-                            <span className="text-[#555555] flex-shrink-0">"</span>
-                          </div>
+                        <Link
+                          href={`/pecas/${event.piece_id}`}
+                          className="text-[#F5F5F5] hover:text-[#E8192C] transition-colors truncate max-w-[200px]"
+                          title={event.piece_title}
+                        >
+                          {event.piece_title}
+                        </Link>
+                        {event.piece_format && (
+                          <span className="text-[10px] text-[#555555] bg-[#2A2A2A] px-1.5 py-0.5 rounded flex-shrink-0">
+                            {formatLabel(event.piece_format)}
+                          </span>
                         )}
                       </div>
+                    </td>
+
+                    {/* Cliente */}
+                    <td className="px-4 py-3 text-[#888888] text-xs">{event.client_name}</td>
+
+                    {/* Detalhes reprovação */}
+                    <td className="px-4 py-3">
+                      {event.type === 'reprovado' && event.approval && (
+                        <div className="flex items-start gap-3 flex-wrap text-xs">
+                          {event.approval.step1_answers && event.approval.step1_answers.length > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[#555555]">O que:</span>
+                              <span className="text-[#888888]">{event.approval.step1_answers.join(', ')}</span>
+                            </div>
+                          )}
+                          {event.approval.step2_answers && event.approval.step2_answers.length > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[#555555]">Detalhe:</span>
+                              <span className="text-[#888888]">{event.approval.step2_answers.join(', ')}</span>
+                            </div>
+                          )}
+                          {event.approval.step3_text && (
+                            <div className="flex items-center gap-1.5 max-w-xs">
+                              <span className="text-[#555555] flex-shrink-0">"</span>
+                              <span className="text-[#888888] italic truncate">{event.approval.step3_text}</span>
+                              <span className="text-[#555555] flex-shrink-0">"</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Delete — admin only, only on upload rows (one button per piece) */}
+                    {isAdmin && (
+                      <td className="px-2 py-3">
+                        {isUpload && (
+                          isConfirming ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDelete(event.piece_id)}
+                                disabled={!!deleting}
+                                className="text-[10px] font-medium text-red-400 hover:text-red-300 bg-red-400/10 border border-red-400/20 px-2 py-1 rounded transition-colors whitespace-nowrap disabled:opacity-40"
+                              >
+                                {isBeingDeleted ? '...' : 'Confirmar'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmingDelete(null)}
+                                className="text-[#555555] hover:text-[#888888] text-[10px] transition-colors"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmingDelete(event.piece_id)}
+                              disabled={!!deleting}
+                              title="Apagar peça"
+                              className="text-[#2E2E2E] hover:text-red-400 transition-colors disabled:opacity-40"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )
+                        )}
+                      </td>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

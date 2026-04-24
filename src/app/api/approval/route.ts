@@ -2,11 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { formatLabel, purposeLabel } from '@/lib/utils'
 
-// Temporary diagnostic — remove after debugging
-export async function GET() {
-  return NextResponse.json({ ok: true, route: 'approval', method: 'GET', ts: Date.now() })
-}
-
 export async function POST(request: Request) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

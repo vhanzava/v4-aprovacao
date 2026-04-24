@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { getRoleFromEmail, canCreatePieces } from '@/lib/auth/roles'
+import { getRoleFromEmail, canCreatePieces, isAdmin } from '@/lib/auth/roles'
 
 function getServiceClient() {
   return createClient(
@@ -61,4 +61,52 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json(data)
+}
+
+/** DELETE /api/pieces/[id]
+ *  Admin only. Permanently removes the piece, its approval, and all assets.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const session = await getSession()
+  if (!session || !isAdmin(session.role)) {
+    return NextResponse.json({ error: 'Apenas admins podem apagar peças' }, { status: 403 })
+  }
+
+  const supabase = getServiceClient()
+
+  // 1. Remove storage files (best-effort — don't block on failure)
+  try {
+    const { data: assets } = await supabase
+      .from('piece_assets')
+      .select('storage_path')
+      .eq('piece_id', id)
+      .not('storage_path', 'is', null)
+
+    const paths = (assets ?? [])
+      .map((a: { storage_path: string }) => a.storage_path)
+      .filter(Boolean)
+
+    if (paths.length > 0) {
+      await supabase.storage.from('pieces').remove(paths)
+    }
+  } catch {
+    // Storage cleanup failure is non-fatal
+  }
+
+  // 2. Delete approval (if exists)
+  await supabase.from('approvals').delete().eq('piece_id', id)
+
+  // 3. Delete piece assets records
+  await supabase.from('piece_assets').delete().eq('piece_id', id)
+
+  // 4. Delete the piece itself
+  const { error } = await supabase.from('pieces').delete().eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
 }

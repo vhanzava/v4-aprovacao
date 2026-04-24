@@ -122,7 +122,7 @@ export function ClientApprovalFlow({ client, pieces, token, singlePieceMode }: P
         }, 2500)
       } else {
         const body = await res.json().catch(() => ({}))
-        setSubmitError(`Erro ${res.status} → ${res.url} | ${body.detail ?? body.error ?? 'sem detalhe'}`)
+        setSubmitError(`Não foi possível enviar. Tenta de novo. (${res.status}${body.error ? `: ${body.error}` : ''})`)
       }
     } catch (err) {
       setSubmitError(`Erro de conexão: ${err instanceof Error ? err.message : String(err)}`)
