@@ -71,6 +71,7 @@ export function BacklogContent({ clients, pieces: initialPieces }: Props) {
     pieceId: string,
     direction: 'up' | 'down'
   ) => {
+    // Sort by current display order (order_index, then created_at as tiebreaker)
     const clientPieces = pieces
       .filter(p => p.client?.id === clientId)
       .sort((a, b) => a.order_index - b.order_index || new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
@@ -79,29 +80,32 @@ export function BacklogContent({ clients, pieces: initialPieces }: Props) {
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= clientPieces.length) return
 
-    const pieceA = clientPieces[idx]
-    const pieceB = clientPieces[swapIdx]
+    // Apply the swap on a copy, then assign sequential indices 0, 1, 2…
+    // This also fixes the common case where all pieces share order_index = 0
+    const reordered = [...clientPieces]
+    ;[reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]]
 
     setMoving(pieceId)
     try {
-      await Promise.all([
-        fetch(`/api/pieces/${pieceA.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order_index: pieceB.order_index }),
-        }),
-        fetch(`/api/pieces/${pieceB.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order_index: pieceA.order_index }),
-        }),
-      ])
+      // Only update pieces whose index actually changed
+      await Promise.all(
+        reordered
+          .map((p, i) => ({ piece: p, newIdx: i }))
+          .filter(({ piece, newIdx }) => piece.order_index !== newIdx)
+          .map(({ piece, newIdx }) =>
+            fetch(`/api/pieces/${piece.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order_index: newIdx }),
+            })
+          )
+      )
 
-      setPieces(prev => prev.map(p => {
-        if (p.id === pieceA.id) return { ...p, order_index: pieceB.order_index }
-        if (p.id === pieceB.id) return { ...p, order_index: pieceA.order_index }
-        return p
-      }))
+      // Update local state with the normalized indices
+      const newIndexMap = new Map(reordered.map((p, i) => [p.id, i]))
+      setPieces(prev => prev.map(p =>
+        newIndexMap.has(p.id) ? { ...p, order_index: newIndexMap.get(p.id)! } : p
+      ))
     } finally {
       setMoving(null)
     }
