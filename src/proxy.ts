@@ -4,7 +4,7 @@ import { getRoleFromEmail } from '@/lib/auth/roles'
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const publicRoutes = ['/login', '/auth/callback', '/cliente', '/api/auth']
+  const publicRoutes = ['/login', '/auth/callback', '/cliente', '/api/']
   const isPublic = publicRoutes.some(r => pathname.startsWith(r))
 
   if (isPublic) return NextResponse.next()
