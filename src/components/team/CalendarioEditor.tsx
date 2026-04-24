@@ -54,7 +54,7 @@ export function CalendarioEditor({ calendar, themes: initialThemes }: Props) {
   const [saving, setSaving] = useState(false)
   const [markingReady, setMarkingReady] = useState(false)
 
-  const POSITIONING_TYPES = ['Carrossel', 'Reels', 'Card'] as const
+  const POSITIONING_TYPES = ['Carrossel', 'Reels', 'Card', 'YouTube', 'TikTok'] as const
   type PositioningType = typeof POSITIONING_TYPES[number]
 
   // Selected date state for adding theme
